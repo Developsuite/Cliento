@@ -47,9 +47,12 @@ const chatbotRoutes = require('./routes/chatbot');
 const allowedOrigins = [
   "https://responsive-737.pages.dev",  
   "https://cliento.icu",         
-  "https://www.cliento.icu"      
+  "https://www.cliento.icu",
+  "http://localhost:3000"  // for local development
 ];
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(compression());
 app.use(morgan('combined'));
 app.use(cors({
@@ -62,7 +65,11 @@ app.use(cors({
       return callback(new Error("Not allowed by CORS: " + origin));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
