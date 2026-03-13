@@ -50,9 +50,9 @@ router.post('/signup', validateSignup, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: errors.array() 
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
       });
     }
 
@@ -97,9 +97,9 @@ router.post('/login', validateLogin, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        error: 'Validation failed', 
-        details: errors.array() 
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
       });
     }
 
@@ -203,14 +203,14 @@ router.get('/profile', async (req, res) => {
   try {
     // This will be protected by middleware later
     const token = req.headers.authorization?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ error: 'Access token required' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     const user = await User.findById(decoded.userId).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -223,6 +223,100 @@ router.get('/profile', async (req, res) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Vault Routes
+
+// GET /api/auth/vault/status - Get vault setup status and security question
+router.get('/vault/status', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.userId).select('+vaultSecurityQuestion +hasVaultPassword');
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({
+      hasVaultPassword: user.hasVaultPassword,
+      securityQuestion: user.vaultSecurityQuestion || null
+    });
+  } catch (error) {
+    console.error('Vault status error:', error);
+    res.status(500).json({ error: 'Failed to check vault status' });
+  }
+});
+
+// POST /api/auth/vault/setup - Create initial vault password and secret question
+router.post('/vault/setup', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { vaultPassword, securityQuestion, securityAnswer } = req.body;
+
+    if (!vaultPassword || !securityQuestion || !securityAnswer) {
+      return res.status(400).json({ error: 'Password, security question, and answer are all required' });
+    }
+
+    user.vaultPassword = vaultPassword;
+    user.vaultSecurityQuestion = securityQuestion;
+    user.vaultSecurityAnswer = securityAnswer;
+    user.hasVaultPassword = true;
+
+    await user.save();
+
+    res.json({ message: 'Vault initialized successfully' });
+  } catch (error) {
+    console.error('Vault setup error:', error);
+    res.status(500).json({ error: 'Failed to setup vault' });
+  }
+});
+
+// POST /api/auth/vault/unlock - Unlock vault via password OR security answer
+router.post('/vault/unlock', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.userId).select('+vaultPassword +vaultSecurityAnswer +hasVaultPassword');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!user.hasVaultPassword) {
+      return res.status(400).json({ error: 'Vault has not been set up yet' });
+    }
+
+    const { vaultPassword, securityAnswer, isResettingPassword } = req.body;
+
+    let isUnlocked = false;
+
+    // Check password if provided
+    if (vaultPassword && !securityAnswer) {
+      isUnlocked = await user.compareVaultPassword(vaultPassword);
+    }
+    // Check security answer if provided (for recovery / reset)
+    else if (securityAnswer && !vaultPassword) {
+      isUnlocked = await user.compareVaultAnswer(securityAnswer);
+    }
+    else {
+      return res.status(400).json({ error: 'Must provide either vault password or security answer' });
+    }
+
+    if (!isUnlocked) {
+      return res.status(401).json({ error: 'Invalid vault password or security answer' });
+    }
+
+    res.json({ message: 'Vault unlocked successfully', success: true });
+  } catch (error) {
+    console.error('Vault unlock error:', error);
+    res.status(500).json({ error: 'Failed to unlock vault' });
   }
 });
 

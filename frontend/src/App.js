@@ -238,6 +238,13 @@ function Dashboard() {
     Other: 'bg-slate-100 text-slate-800'
   };
 
+  // Vault state
+  const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
+  const [vaultMode, setVaultMode] = useState('setup'); // 'setup', 'unlock', 'forgot'
+  const [vaultPasswordInput, setVaultPasswordInput] = useState('');
+  const [vaultSecurityQuestion, setVaultSecurityQuestion] = useState('');
+  const [vaultSecurityAnswerInput, setVaultSecurityAnswerInput] = useState('');
+
   // Credentials state
   const [credentials, setCredentials] = useState([]);
   const [isAddCredOpen, setIsAddCredOpen] = useState(false);
@@ -655,6 +662,7 @@ function Dashboard() {
 
   // Credentials fetch & handlers
   const fetchCredentials = useCallback(async () => {
+    if (!isVaultUnlocked) return;
     try {
       const params = new URLSearchParams();
       if (credSearch) params.append('search', credSearch);
@@ -665,7 +673,7 @@ function Dashboard() {
       console.error(err);
       toast.error('Failed to fetch credentials');
     }
-  }, [credSearch, credCategoryFilter]);
+  }, [credSearch, credCategoryFilter, isVaultUnlocked]);
 
   const handleAddCred = async (e) => {
     e.preventDefault();
@@ -757,6 +765,72 @@ function Dashboard() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to load credential details');
+    }
+  };
+
+  const checkVaultStatus = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/auth/vault/status`);
+      if (res.data.hasVaultPassword) {
+        setVaultMode('unlock');
+        setVaultSecurityQuestion(res.data.securityQuestion || '');
+      } else {
+        setVaultMode('setup');
+      }
+    } catch (err) {
+      console.error('Failed to check vault status:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'passwords' && !isVaultUnlocked) {
+      checkVaultStatus();
+    }
+  }, [activeTab, isVaultUnlocked, checkVaultStatus]);
+
+  const handleVaultSetup = async (e) => {
+    e.preventDefault();
+    if (!vaultPasswordInput || !vaultSecurityQuestion || !vaultSecurityAnswerInput) {
+      toast.error('All fields are required');
+      return;
+    }
+    try {
+      await axios.post(`${API}/auth/vault/setup`, {
+        vaultPassword: vaultPasswordInput,
+        securityQuestion: vaultSecurityQuestion,
+        securityAnswer: vaultSecurityAnswerInput
+      });
+      toast.success('Vault setup successful!');
+      setIsVaultUnlocked(true);
+      setVaultPasswordInput('');
+      setVaultSecurityAnswerInput('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to setup vault');
+    }
+  };
+
+  const handleVaultUnlock = async (e) => {
+    e.preventDefault();
+    if (vaultMode === 'unlock' && !vaultPasswordInput) {
+      toast.error('Password required');
+      return;
+    }
+    if (vaultMode === 'forgot' && !vaultSecurityAnswerInput) {
+      toast.error('Answer required');
+      return;
+    }
+    try {
+      const payload = vaultMode === 'unlock'
+        ? { vaultPassword: vaultPasswordInput }
+        : { securityAnswer: vaultSecurityAnswerInput };
+
+      await axios.post(`${API}/auth/vault/unlock`, payload);
+      toast.success('Vault unlocked!');
+      setIsVaultUnlocked(true);
+      setVaultPasswordInput('');
+      setVaultSecurityAnswerInput('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Invalid credentials');
     }
   };
 
@@ -2335,7 +2409,75 @@ function Dashboard() {
             </div>
           )}
 
-          {activeTab === 'passwords' && (
+          {activeTab === 'passwords' && !isVaultUnlocked && (
+            <div className="flex flex-col items-center justify-center py-20 px-4">
+              <div className="w-16 h-16 rounded-2xl bg-teal-500/10 flex items-center justify-center mb-6">
+                <Lock className="h-8 w-8 text-teal-400" />
+              </div>
+
+              {vaultMode === 'setup' && (
+                <div className="w-full max-w-md bg-white/5 border border-white/10 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl transition-all duration-300 transform">
+                  <h3 className="text-2xl font-bold text-white text-center mb-2">Setup Credentials Vault</h3>
+                  <p className="text-white/60 text-sm text-center mb-6">Create a master password and recovery question to secure your passwords.</p>
+                  <form onSubmit={handleVaultSetup} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Master Password</Label>
+                      <Input type="password" value={vaultPasswordInput} onChange={(e) => setVaultPasswordInput(e.target.value)} required className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Security Question</Label>
+                      <Input placeholder="e.g. What was your childhood nickname?" value={vaultSecurityQuestion} onChange={(e) => setVaultSecurityQuestion(e.target.value)} required className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Security Answer</Label>
+                      <Input type="password" value={vaultSecurityAnswerInput} onChange={(e) => setVaultSecurityAnswerInput(e.target.value)} required className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <Button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 rounded-xl py-6 mt-4 font-semibold text-lg">Secure Vault</Button>
+                  </form>
+                </div>
+              )}
+
+              {vaultMode === 'unlock' && (
+                <div className="w-full max-w-md bg-white/5 border border-white/10 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl transition-all duration-300 transform">
+                  <h3 className="text-2xl font-bold text-white text-center mb-2">Vault Locked</h3>
+                  <p className="text-white/60 text-sm text-center mb-6">Enter your master password to access your credentials.</p>
+                  <form onSubmit={handleVaultUnlock} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Master Password</Label>
+                      <Input type="password" value={vaultPasswordInput} onChange={(e) => setVaultPasswordInput(e.target.value)} required autoFocus className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <Button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 rounded-xl py-6 mt-4 font-semibold text-lg">Unlock Vault</Button>
+                  </form>
+                  <div className="mt-4 text-center">
+                    <button onClick={() => setVaultMode('forgot')} className="text-sm text-teal-400 hover:text-teal-300 transition-colors">Forgot Master Password?</button>
+                  </div>
+                </div>
+              )}
+
+              {vaultMode === 'forgot' && (
+                <div className="w-full max-w-md bg-white/5 border border-white/10 p-6 sm:p-8 rounded-3xl backdrop-blur-xl shadow-2xl transition-all duration-300 transform">
+                  <h3 className="text-2xl font-bold text-white text-center mb-2">Recover Vault Access</h3>
+                  <p className="text-white/60 text-sm text-center mb-6">Answer your security question to unlock the vault.</p>
+                  <form onSubmit={handleVaultUnlock} className="space-y-4">
+                    <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/10 mb-4">
+                      <p className="text-xs text-white/50 uppercase tracking-wider">Security Question</p>
+                      <p className="text-white font-medium">{vaultSecurityQuestion || 'No security question set.'}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Your Answer</Label>
+                      <Input type="password" value={vaultSecurityAnswerInput} onChange={(e) => setVaultSecurityAnswerInput(e.target.value)} required autoFocus className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl py-6 mt-4 font-semibold text-lg">Unlock & Recover</Button>
+                  </form>
+                  <div className="mt-4 text-center">
+                    <button onClick={() => setVaultMode('unlock')} className="text-sm text-white/50 hover:text-white/80 transition-colors">Back to Login</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'passwords' && isVaultUnlocked && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-teal-300 to-cyan-300 bg-clip-text text-transparent">Passwords</h2>
