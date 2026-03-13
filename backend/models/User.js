@@ -58,11 +58,19 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-
   try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
+    if (this.isModified('password')) {
+      const salt = await bcrypt.genSalt(12);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+    if (this.isModified('vaultPassword')) {
+      const salt = await bcrypt.genSalt(12);
+      this.vaultPassword = await bcrypt.hash(this.vaultPassword, salt);
+    }
+    if (this.isModified('vaultSecurityAnswer')) {
+      const salt = await bcrypt.genSalt(12);
+      this.vaultSecurityAnswer = await bcrypt.hash(this.vaultSecurityAnswer.toLowerCase(), salt);
+    }
     next();
   } catch (error) {
     next(error);
@@ -72,6 +80,18 @@ userSchema.pre('save', async function (next) {
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Compare vault password method
+userSchema.methods.compareVaultPassword = async function (candidatePassword) {
+  if (!this.vaultPassword) return false;
+  return await bcrypt.compare(candidatePassword, this.vaultPassword);
+};
+
+// Compare vault security answer method
+userSchema.methods.compareVaultAnswer = async function (candidateAnswer) {
+  if (!this.vaultSecurityAnswer) return false;
+  return await bcrypt.compare(candidateAnswer.toLowerCase(), this.vaultSecurityAnswer);
 };
 
 // Create password reset token (hashed in DB, raw token returned)
