@@ -42,11 +42,14 @@ const projectRoutes = require('./routes/projects');
 const leadRoutes = require('./routes/leads');
 const auth = require('./middleware/auth');
 const chatbotRoutes = require('./routes/chatbot');
+const documentRoutes = require('./routes/documents');
+const noteRoutes = require('./routes/notes');
+const credentialRoutes = require('./routes/credentials');
 
 // Middleware
 const allowedOrigins = [
-  "https://responsive-737.pages.dev",  
-  "https://cliento.icu",         
+  "https://responsive-737.pages.dev",
+  "https://cliento.icu",
   "https://www.cliento.icu",
   "http://localhost:3000"  // for local development
 ];
@@ -78,17 +81,14 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection
-mongoose.connect((envConfig?.MONGODB_URI) || process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB Atlas');
-})
-.catch((error) => {
-  console.error('❌ MongoDB connection error:', error);
-  process.exit(1);
-});
+mongoose.connect((envConfig?.MONGODB_URI) || process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB Atlas');
+  })
+  .catch((error) => {
+    console.error('❌ MongoDB connection error:', error);
+    process.exit(1);
+  });
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -99,11 +99,14 @@ app.use('/api/dashboard', auth, dashboardRoutes);
 app.use('/api/projects', auth, projectRoutes);
 app.use('/api/leads', auth, leadRoutes);
 app.use('/api/chatbot', auth, chatbotRoutes);
+app.use('/api/documents', auth, documentRoutes);
+app.use('/api/notes', auth, noteRoutes);
+app.use('/api/credentials', auth, credentialRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'SalesForge CRM API is running',
     timestamp: new Date().toISOString()
   });
@@ -112,7 +115,7 @@ app.get('/api/health', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });

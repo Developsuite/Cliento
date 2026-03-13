@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SalesForge CRM - Complete Business Management Platform
 
 A modern, full-stack CRM application built with React frontend and Node.js backend, featuring client management, project tracking, meeting scheduling, and **secure user authentication**.
@@ -155,3 +156,7 @@ The application is built with modern development practices:
 ## 📄 License
 
 MIT License - feel free to use and modify as needed.
+=======
+# Cliento
+Cliento is a client managemnet system specailly for various comapnies to manage their client mangemnt syytem in ease 
+>>>>>>> 206bd8c48589c30fd8990a5ae9ee71905680a062
