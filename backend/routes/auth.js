@@ -265,10 +265,17 @@ router.post('/vault/setup', async (req, res) => {
       return res.status(400).json({ error: 'Password, security question, and answer are all required' });
     }
 
+    // Force overwrite corrupted or old passwords
     user.vaultPassword = vaultPassword;
     user.vaultSecurityQuestion = securityQuestion;
     user.vaultSecurityAnswer = securityAnswer;
     user.hasVaultPassword = true;
+
+    // We explicitly mark these paths as modified so the pre-save hook catches them
+    user.markModified('vaultPassword');
+    user.markModified('vaultSecurityQuestion');
+    user.markModified('vaultSecurityAnswer');
+    user.markModified('hasVaultPassword');
 
     await user.save();
 
@@ -276,6 +283,36 @@ router.post('/vault/setup', async (req, res) => {
   } catch (error) {
     console.error('Vault setup error:', error);
     res.status(500).json({ error: 'Failed to setup vault' });
+  }
+});
+
+// POST /api/auth/vault/reset - TEMP: Clear corrupted vault for testing
+router.post('/vault/reset', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Access token required' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const user = await User.findById(decoded.userId).select('+vaultPassword +vaultSecurityAnswer');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.vaultPassword = undefined;
+    user.vaultSecurityQuestion = undefined;
+    user.vaultSecurityAnswer = undefined;
+    user.hasVaultPassword = false;
+
+    // We explicitly mark these paths as modified so the pre-save hook catches them
+    user.markModified('vaultPassword');
+    user.markModified('vaultSecurityQuestion');
+    user.markModified('vaultSecurityAnswer');
+    user.markModified('hasVaultPassword');
+
+    await user.save();
+
+    res.json({ message: 'Vault reset successfully' });
+  } catch (error) {
+    console.error('Vault reset error:', error);
+    res.status(500).json({ error: 'Failed to reset vault' });
   }
 });
 

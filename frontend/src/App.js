@@ -126,12 +126,12 @@ function Dashboard() {
   const [editingClient, setEditingClient] = useState(null);
   const [editClient, setEditClient] = useState(null);
   const [isAddMeetingOpen, setIsAddMeetingOpen] = useState(false);
-  const [newMeeting, setNewMeeting] = useState({ client_id: '', title: '', date: '', time: '', notes: '' });
+  const [newMeeting, setNewMeeting] = useState({ client_id: '', title: '', date: '', time: '', notes: '', customAttendee: '' });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(null);
   const [isViewMeetingOpen, setIsViewMeetingOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [isEditMeetingOpen, setIsEditMeetingOpen] = useState(false);
-  const [editMeeting, setEditMeeting] = useState({ client_id: '', title: '', date: '', time: '', notes: '' });
+  const [editMeeting, setEditMeeting] = useState({ client_id: '', title: '', date: '', time: '', notes: '', customAttendee: '' });
   const [projects, setProjects] = useState([]);
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -919,7 +919,7 @@ function Dashboard() {
   const handleScheduleMeeting = async (e) => {
     e.preventDefault();
     try {
-      const { client_id, title, date, time } = newMeeting;
+      const { client_id, title, date, time, customAttendee } = newMeeting;
       if (!client_id || !title || !date || !time) {
         toast.error('Please fill in client, title, date and time');
         return;
@@ -928,10 +928,13 @@ function Dashboard() {
       const [hh, min] = time.split(':').map((v) => parseInt(v, 10));
       const localDateTime = new Date(yy, (mm || 1) - 1, dd || 1, hh || 0, min || 0, 0);
       const payload = { ...newMeeting, date: localDateTime.toISOString() };
+      if (customAttendee && customAttendee.trim() !== '') {
+        payload.attendees = [{ name: customAttendee.trim() }];
+      }
       await axios.post(`${API}/meetings`, payload);
       toast.success('Meeting scheduled');
       setIsAddMeetingOpen(false);
-      setNewMeeting({ client_id: '', title: '', date: '', time: '', notes: '' });
+      setNewMeeting({ client_id: '', title: '', date: '', time: '', notes: '', customAttendee: '' });
       fetchMeetings();
     } catch (err) {
       console.error(err);
@@ -958,7 +961,7 @@ function Dashboard() {
     e.preventDefault();
     if (!selectedMeeting) return;
     try {
-      const { client_id, title, date, time, notes } = editMeeting;
+      const { client_id, title, date, time, notes, customAttendee } = editMeeting;
       if (!client_id || !title || !date || !time) {
         toast.error('Please fill in client, title, date and time');
         return;
@@ -967,6 +970,11 @@ function Dashboard() {
       const [hh, min] = time.split(':').map((v) => parseInt(v, 10));
       const localDateTime = new Date(yy, (mm || 1) - 1, dd || 1, hh || 0, min || 0, 0);
       const payload = { client_id, title, time, notes, date: localDateTime.toISOString() };
+      if (customAttendee && customAttendee.trim() !== '') {
+        payload.attendees = [{ name: customAttendee.trim() }];
+      } else {
+        payload.attendees = [];
+      }
       const id = selectedMeeting._id || selectedMeeting.id;
       await axios.put(`${API}/meetings/${id}`, payload);
       toast.success('Meeting updated');
@@ -3574,6 +3582,15 @@ function Dashboard() {
                 />
               </div>
               <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-white/70 text-xs uppercase tracking-wider">Additional Attendee (Optional)</Label>
+                <Input
+                  placeholder="E.g. John Doe"
+                  value={newMeeting.customAttendee}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
+                  className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
+                />
+              </div>
+              <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                 <Textarea
                   rows={3}
@@ -3759,7 +3776,16 @@ function Dashboard() {
                 </div>
               </div>
               <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3">
-                <div className="text-sm text-white/80">{selectedMeeting.notes || 'No notes provided'}</div>
+                {selectedMeeting.attendees && selectedMeeting.attendees.length > 0 && (
+                  <div className="text-sm font-medium text-white/90 bg-white/5 p-3 rounded-xl border border-white/10">
+                    <span className="text-white/60 text-xs uppercase tracking-wider block mb-1">Additional Attendee</span>
+                    {selectedMeeting.attendees[0].name}
+                  </div>
+                )}
+                <div className="text-sm text-white/80">
+                  <span className="text-white/60 text-xs uppercase tracking-wider block mb-1">Notes</span>
+                  {selectedMeeting.notes || 'No notes provided'}
+                </div>
               </div>
               <div className="px-4 sm:px-6 pb-4 flex items-center justify-end gap-2">
                 <Button variant="ghost" className="text-white hover:bg-white/10 rounded-xl" onClick={() => setIsViewMeetingOpen(false)}>Close</Button>
@@ -3771,7 +3797,8 @@ function Dashboard() {
                       title: selectedMeeting.title || '',
                       date: selectedMeeting.date ? new Date(selectedMeeting.date).toISOString().slice(0, 10) : '',
                       time: selectedMeeting.time || '',
-                      notes: selectedMeeting.notes || ''
+                      notes: selectedMeeting.notes || '',
+                      customAttendee: selectedMeeting.attendees && selectedMeeting.attendees.length > 0 ? selectedMeeting.attendees[0].name : ''
                     });
                     setIsEditMeetingOpen(true);
                   }}>Edit</Button>
@@ -3833,6 +3860,15 @@ function Dashboard() {
                     value={editMeeting.time}
                     onChange={(e) => setEditMeeting({ ...editMeeting, time: e.target.value })}
                     required
+                    className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-white/70 text-xs uppercase tracking-wider">Additional Attendee (Optional)</Label>
+                  <Input
+                    placeholder="E.g. John Doe"
+                    value={editMeeting.customAttendee}
+                    onChange={(e) => setEditMeeting({ ...editMeeting, customAttendee: e.target.value })}
                     className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                   />
                 </div>

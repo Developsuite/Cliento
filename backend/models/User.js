@@ -63,14 +63,19 @@ userSchema.pre('save', async function (next) {
       const salt = await bcrypt.genSalt(12);
       this.password = await bcrypt.hash(this.password, salt);
     }
-    if (this.isModified('vaultPassword')) {
+
+    // Only hash if vaultPassword is newly set or modified and NOT already a hash
+    if (this.isModified('vaultPassword') && this.vaultPassword && !this.vaultPassword.startsWith('$2a$') && !this.vaultPassword.startsWith('$2b$')) {
       const salt = await bcrypt.genSalt(12);
       this.vaultPassword = await bcrypt.hash(this.vaultPassword, salt);
     }
-    if (this.isModified('vaultSecurityAnswer')) {
+
+    // Only hash if vaultSecurityAnswer is newly set or modified and NOT already a hash
+    if (this.isModified('vaultSecurityAnswer') && this.vaultSecurityAnswer && !this.vaultSecurityAnswer.startsWith('$2a$') && !this.vaultSecurityAnswer.startsWith('$2b$')) {
       const salt = await bcrypt.genSalt(12);
       this.vaultSecurityAnswer = await bcrypt.hash(this.vaultSecurityAnswer.toLowerCase(), salt);
     }
+
     next();
   } catch (error) {
     next(error);

@@ -11,5 +11,8 @@
     "start:frontend": "yarn workspace frontend start",
     "start:backend": "yarn workspace backend start",
     "lint": "echo 'No root lint configured'"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
   }
 }
