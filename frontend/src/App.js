@@ -834,6 +834,21 @@ function Dashboard() {
     }
   };
 
+  const handleVaultReset = async () => {
+    if (!window.confirm('WARNING: This will totally reset your vault password and security question. You will need to set them up again. Local credentials will NOT be deleted, but they will be locked until you setup the new password. Proceed?')) return;
+    try {
+      await axios.post(`${API}/auth/vault/reset`);
+      toast.success('Vault has been reset. Please set it up again.');
+      setVaultMode('setup');
+      setIsVaultUnlocked(false);
+      setVaultPasswordInput('');
+      setVaultSecurityAnswerInput('');
+      setVaultSecurityQuestion('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to reset vault');
+    }
+  };
+
   useEffect(() => {
     fetchClients();
     fetchMeetings();
@@ -2477,8 +2492,9 @@ function Dashboard() {
                     </div>
                     <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl py-6 mt-4 font-semibold text-lg">Unlock & Recover</Button>
                   </form>
-                  <div className="mt-4 text-center">
+                  <div className="mt-4 flex flex-col items-center gap-2">
                     <button onClick={() => setVaultMode('unlock')} className="text-sm text-white/50 hover:text-white/80 transition-colors">Back to Login</button>
+                    <button onClick={handleVaultReset} className="text-xs text-red-400/50 hover:text-red-400 transition-colors mt-4">Last Resort: Hard Reset Vault</button>
                   </div>
                 </div>
               )}
