@@ -349,17 +349,8 @@ router.post('/vault/unlock', async (req, res) => {
     if (vaultPassword && !securityAnswer) {
       isUnlocked = await user.compareVaultPassword(vaultPassword);
     }
-    // Case 2: Recovery Unlock with Security Answer (NOW REQUIRES Account Password for safety)
+    // Case 2: Recovery Unlock with Security Answer
     else if (securityAnswer && !vaultPassword) {
-      if (!accountPassword) {
-        return res.status(400).json({ error: 'Main account password is required for vault recovery' });
-      }
-
-      const isAccountPwValid = await user.comparePassword(accountPassword);
-      if (!isAccountPwValid) {
-        return res.status(401).json({ error: 'Invalid account password' });
-      }
-
       isUnlocked = await user.compareVaultAnswer(securityAnswer);
     }
     else {

@@ -823,13 +823,12 @@ function Dashboard() {
     try {
       const payload = vaultMode === 'unlock'
         ? { vaultPassword: vaultPasswordInput }
-        : { securityAnswer: vaultSecurityAnswerInput, accountPassword: accountPasswordInput };
+        : { securityAnswer: vaultSecurityAnswerInput };
 
       await axios.post(`${API}/auth/vault/unlock`, payload);
       toast.success('Vault unlocked!');
       setIsVaultUnlocked(true);
       setVaultPasswordInput('');
-      setAccountPasswordInput('');
       setVaultSecurityAnswerInput('');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Invalid credentials');
@@ -837,7 +836,7 @@ function Dashboard() {
   };
 
   const handleVaultReset = async () => {
-    const accountPassword = window.prompt('WARNING: This will totally reset your vault. Please ENTER YOUR ACCOUNT PASSWORD (the one you use to login) to confirm:');
+    const accountPassword = window.prompt('cliento security verification: Please ENTER YOUR ACCOUNT PASSWORD to authorize this action:');
 
     if (accountPassword === null) return; // User cancelled
 
@@ -2500,15 +2499,11 @@ function Dashboard() {
                       <Label className="text-white/70 text-xs uppercase tracking-wider">Your Answer</Label>
                       <Input type="password" value={vaultSecurityAnswerInput} onChange={(e) => setVaultSecurityAnswerInput(e.target.value)} required autoFocus className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-white/70 text-xs uppercase tracking-wider">Account Password (to verify identity)</Label>
-                      <Input type="password" value={accountPasswordInput} onChange={(e) => setAccountPasswordInput(e.target.value)} required className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
-                    </div>
                     <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl py-6 mt-4 font-semibold text-lg">Unlock & Recover</Button>
                   </form>
                   <div className="mt-4 flex flex-col items-center gap-2">
                     <button onClick={() => setVaultMode('unlock')} className="text-sm text-white/50 hover:text-white/80 transition-colors">Back to Login</button>
-                    <button onClick={handleVaultReset} className="text-xs text-red-400/50 hover:text-red-400 transition-colors mt-4">Last Resort: Hard Reset Vault</button>
+                    <span onClick={handleVaultReset} className="text-[10px] text-white/20 cursor-default mt-4 select-none">cliento : A product by developsuite</span>
                   </div>
                 </div>
               )}
