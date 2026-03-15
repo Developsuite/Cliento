@@ -242,6 +242,7 @@ function Dashboard() {
   const [isVaultUnlocked, setIsVaultUnlocked] = useState(false);
   const [vaultMode, setVaultMode] = useState('setup'); // 'setup', 'unlock', 'forgot'
   const [vaultPasswordInput, setVaultPasswordInput] = useState('');
+  const [accountPasswordInput, setAccountPasswordInput] = useState('');
   const [vaultSecurityQuestion, setVaultSecurityQuestion] = useState('');
   const [vaultSecurityAnswerInput, setVaultSecurityAnswerInput] = useState('');
 
@@ -822,12 +823,13 @@ function Dashboard() {
     try {
       const payload = vaultMode === 'unlock'
         ? { vaultPassword: vaultPasswordInput }
-        : { securityAnswer: vaultSecurityAnswerInput };
+        : { securityAnswer: vaultSecurityAnswerInput, accountPassword: accountPasswordInput };
 
       await axios.post(`${API}/auth/vault/unlock`, payload);
       toast.success('Vault unlocked!');
       setIsVaultUnlocked(true);
       setVaultPasswordInput('');
+      setAccountPasswordInput('');
       setVaultSecurityAnswerInput('');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Invalid credentials');
@@ -835,9 +837,17 @@ function Dashboard() {
   };
 
   const handleVaultReset = async () => {
-    if (!window.confirm('WARNING: This will totally reset your vault password and security question. You will need to set them up again. Local credentials will NOT be deleted, but they will be locked until you setup the new password. Proceed?')) return;
+    const accountPassword = window.prompt('WARNING: This will totally reset your vault. Please ENTER YOUR ACCOUNT PASSWORD (the one you use to login) to confirm:');
+
+    if (accountPassword === null) return; // User cancelled
+
+    if (!accountPassword) {
+      toast.error('Account password is required for reset');
+      return;
+    }
+
     try {
-      await axios.post(`${API}/auth/vault/reset`);
+      await axios.post(`${API}/auth/vault/reset`, { accountPassword });
       toast.success('Vault has been reset. Please set it up again.');
       setVaultMode('setup');
       setIsVaultUnlocked(false);
@@ -2489,6 +2499,10 @@ function Dashboard() {
                     <div className="space-y-1.5">
                       <Label className="text-white/70 text-xs uppercase tracking-wider">Your Answer</Label>
                       <Input type="password" value={vaultSecurityAnswerInput} onChange={(e) => setVaultSecurityAnswerInput(e.target.value)} required autoFocus className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-white/70 text-xs uppercase tracking-wider">Account Password (to verify identity)</Label>
+                      <Input type="password" value={accountPasswordInput} onChange={(e) => setAccountPasswordInput(e.target.value)} required className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40" />
                     </div>
                     <Button type="submit" className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 rounded-xl py-6 mt-4 font-semibold text-lg">Unlock & Recover</Button>
                   </form>

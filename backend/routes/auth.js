@@ -286,22 +286,33 @@ router.post('/vault/setup', async (req, res) => {
   }
 });
 
-// POST /api/auth/vault/reset - TEMP: Clear corrupted vault for testing
+// POST /api/auth/vault/reset - Clear vault password (requires main account password verification)
 router.post('/vault/reset', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ error: 'Access token required' });
 
+    const { accountPassword } = req.body;
+    if (!accountPassword) {
+      return res.status(400).json({ error: 'Account password is required to reset vault' });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId).select('+vaultPassword +vaultSecurityAnswer');
+    const user = await User.findById(decoded.userId).select('+password +vaultPassword +vaultSecurityAnswer');
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Verify main account password
+    const isMainPasswordValid = await user.comparePassword(accountPassword);
+    if (!isMainPasswordValid) {
+      return res.status(401).json({ error: 'Invalid account password. Vault reset denied.' });
+    }
 
     user.vaultPassword = undefined;
     user.vaultSecurityQuestion = undefined;
     user.vaultSecurityAnswer = undefined;
     user.hasVaultPassword = false;
 
-    // We explicitly mark these paths as modified so the pre-save hook catches them
+    // Explicitly mark modified
     user.markModified('vaultPassword');
     user.markModified('vaultSecurityQuestion');
     user.markModified('vaultSecurityAnswer');
@@ -309,7 +320,7 @@ router.post('/vault/reset', async (req, res) => {
 
     await user.save();
 
-    res.json({ message: 'Vault reset successfully' });
+    res.json({ message: 'Vault reset successfully. You can now set it up again.' });
   } catch (error) {
     console.error('Vault reset error:', error);
     res.status(500).json({ error: 'Failed to reset vault' });
@@ -330,16 +341,25 @@ router.post('/vault/unlock', async (req, res) => {
       return res.status(400).json({ error: 'Vault has not been set up yet' });
     }
 
-    const { vaultPassword, securityAnswer, isResettingPassword } = req.body;
+    const { vaultPassword, securityAnswer, accountPassword } = req.body;
 
     let isUnlocked = false;
 
-    // Check password if provided
+    // Case 1: Standard Unlock with Master Password
     if (vaultPassword && !securityAnswer) {
       isUnlocked = await user.compareVaultPassword(vaultPassword);
     }
-    // Check security answer if provided (for recovery / reset)
+    // Case 2: Recovery Unlock with Security Answer (NOW REQUIRES Account Password for safety)
     else if (securityAnswer && !vaultPassword) {
+      if (!accountPassword) {
+        return res.status(400).json({ error: 'Main account password is required for vault recovery' });
+      }
+
+      const isAccountPwValid = await user.comparePassword(accountPassword);
+      if (!isAccountPwValid) {
+        return res.status(401).json({ error: 'Invalid account password' });
+      }
+
       isUnlocked = await user.compareVaultAnswer(securityAnswer);
     }
     else {
