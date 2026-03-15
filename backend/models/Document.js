@@ -28,7 +28,11 @@ const documentSchema = new mongoose.Schema({
   },
   path: {
     type: String,
-    required: true
+    required: false
+  },
+  fileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
   },
   size: {
     type: Number,

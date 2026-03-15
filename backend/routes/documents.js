@@ -3,22 +3,24 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
+const stream = require('stream');
 const Document = require('../models/Document');
 
-// Configure multer storage
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, '../uploads/documents');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+// Initialize GridFS bucket lazily
+let bucket;
+const getBucket = () => {
+    if (!bucket && mongoose.connection.readyState === 1) {
+        bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+            bucketName: 'documents'
+        });
     }
-});
+    return bucket;
+};
+
+// Configure multer storage
+// Configure multer to use memory storage
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
@@ -76,22 +78,49 @@ router.get('/', async (req, res) => {
     }
 });
 
-// POST /api/documents — Upload a new document
+// POST /api/documents — Upload a new document to MongoDB
 router.post('/', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        const gfs = getBucket();
+        if (!gfs) {
+            return res.status(500).json({ error: 'Database connection not ready' });
+        }
+
         const { title, description, category, tags } = req.body;
+        const filename = `${Date.now()}-${req.file.originalname}`;
+
+        // Create an upload stream to GridFS
+        const uploadStream = gfs.openUploadStream(filename, {
+            contentType: req.file.mimetype,
+            metadata: {
+                user: req.user._id,
+                originalName: req.file.originalname
+            }
+        });
+
+        // Convert buffer to stream and pipe to GridFS
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(req.file.buffer);
+
+        const fileUploadPromise = new Promise((resolve, reject) => {
+            bufferStream.pipe(uploadStream)
+                .on('error', reject)
+                .on('finish', resolve);
+        });
+
+        await fileUploadPromise;
 
         const document = new Document({
             user: req.user._id,
             title: title || req.file.originalname,
             description: description || '',
-            filename: req.file.filename,
+            filename: filename,
             originalName: req.file.originalname,
-            path: `uploads/documents/${req.file.filename}`,
+            fileId: uploadStream.id, // Save the reference to GridFS file
             size: req.file.size,
             mimetype: req.file.mimetype,
             category: category || 'General',
@@ -102,10 +131,6 @@ router.post('/', upload.single('file'), async (req, res) => {
         res.status(201).json({ document, message: 'Document uploaded successfully' });
     } catch (error) {
         console.error('Error uploading document:', error);
-        // Clean up uploaded file on error
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
         res.status(500).json({ error: error.message || 'Failed to upload document' });
     }
 });
@@ -156,16 +181,22 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        // Remove file from disk
-        const filePath = document.path;
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        } else {
-            // Fallback for absolute paths or mismatched relative paths
-            const filename = document.filename;
-            const fallbackPath = path.join(process.cwd(), 'uploads/documents', filename);
-            if (fs.existsSync(fallbackPath)) {
-                fs.unlinkSync(fallbackPath);
+        // Delete from GridFS if fileId exists
+        if (document.fileId) {
+            const gfs = getBucket();
+            if (gfs) {
+                try {
+                    await gfs.delete(new mongoose.Types.ObjectId(document.fileId));
+                } catch (gfsErr) {
+                    console.error('Error deleting from GridFS:', gfsErr);
+                }
+            }
+        }
+
+        // Keep fallback for legacy local files
+        if (document.path) {
+            if (fs.existsSync(document.path)) {
+                fs.unlinkSync(document.path);
             }
         }
 
@@ -177,38 +208,53 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /api/documents/:id/download — Download the file
+// GET /api/documents/:id/download — Download the file from MongoDB or Local
 router.get('/:id/download', async (req, res) => {
     try {
         const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
 
         if (!document) {
-            console.error(`[DownloadDoc] Document not found: ${req.params.id} for user ${req.user._id}`);
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        let filePath = document.path;
-
-        // If the path is absolute or doesn't exist, try to find it in the current uploads directory
-        if (!fs.existsSync(filePath)) {
-            const filename = document.filename || path.basename(filePath);
-            const fallbackPath = path.join(process.cwd(), 'uploads/documents', filename);
-
-            if (fs.existsSync(fallbackPath)) {
-                filePath = fallbackPath;
-            } else {
-                // Try one more: relative to backend folder if not already
-                const secondFallback = path.join(__dirname, '../uploads/documents', filename);
-                if (fs.existsSync(secondFallback)) {
-                    filePath = secondFallback;
-                } else {
-                    console.error(`[DownloadDoc] File not found. Tried: ${document.path} and ${fallbackPath}`);
-                    return res.status(404).json({ error: 'File not found on server' });
-                }
+        // 1. Try to download from GridFS if fileId exists
+        if (document.fileId) {
+            const gfs = getBucket();
+            if (!gfs) {
+                return res.status(500).json({ error: 'Database connection not ready' });
             }
+
+            res.set('Content-Type', document.mimetype);
+            res.set('Content-Disposition', `attachment; filename="${document.originalName}"`);
+
+            const downloadStream = gfs.openDownloadStream(new mongoose.Types.ObjectId(document.fileId));
+
+            downloadStream.on('error', (err) => {
+                console.error('GridFS Download Stream Error:', err);
+                // If GridFS fails, try to fall back to path if it exists
+                if (document.path && fs.existsSync(document.path)) {
+                    return res.download(document.path, document.originalName);
+                }
+                if (!res.headersSent) {
+                    res.status(404).json({ error: 'File not found in storage' });
+                }
+            });
+
+            return downloadStream.pipe(res);
         }
 
-        res.download(filePath, document.originalName);
+        // 2. Fallback to Local Storage for old documents
+        if (document.path && fs.existsSync(document.path)) {
+            return res.download(document.path, document.originalName);
+        }
+
+        // 3. Final attempt: search filesystem by name if path is broken
+        const fallbackPath = path.join(process.cwd(), 'uploads/documents', document.filename);
+        if (fs.existsSync(fallbackPath)) {
+            return res.download(fallbackPath, document.originalName);
+        }
+
+        res.status(404).json({ error: 'File not found on server or database' });
     } catch (error) {
         console.error('Error downloading document:', error);
         res.status(500).json({ error: 'Failed to download document' });
