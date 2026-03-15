@@ -91,7 +91,7 @@ router.post('/', upload.single('file'), async (req, res) => {
             description: description || '',
             filename: req.file.filename,
             originalName: req.file.originalname,
-            path: req.file.path,
+            path: `uploads/documents/${req.file.filename}`,
             size: req.file.size,
             mimetype: req.file.mimetype,
             category: category || 'General',
@@ -157,8 +157,16 @@ router.delete('/:id', async (req, res) => {
         }
 
         // Remove file from disk
-        if (fs.existsSync(document.path)) {
-            fs.unlinkSync(document.path);
+        const filePath = document.path;
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        } else {
+            // Fallback for absolute paths or mismatched relative paths
+            const filename = document.filename;
+            const fallbackPath = path.join(process.cwd(), 'uploads/documents', filename);
+            if (fs.existsSync(fallbackPath)) {
+                fs.unlinkSync(fallbackPath);
+            }
         }
 
         await Document.deleteOne({ _id: document._id });
@@ -175,14 +183,32 @@ router.get('/:id/download', async (req, res) => {
         const document = await Document.findOne({ _id: req.params.id, user: req.user._id });
 
         if (!document) {
+            console.error(`[DownloadDoc] Document not found: ${req.params.id} for user ${req.user._id}`);
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        if (!fs.existsSync(document.path)) {
-            return res.status(404).json({ error: 'File not found on server' });
+        let filePath = document.path;
+
+        // If the path is absolute or doesn't exist, try to find it in the current uploads directory
+        if (!fs.existsSync(filePath)) {
+            const filename = document.filename || path.basename(filePath);
+            const fallbackPath = path.join(process.cwd(), 'uploads/documents', filename);
+
+            if (fs.existsSync(fallbackPath)) {
+                filePath = fallbackPath;
+            } else {
+                // Try one more: relative to backend folder if not already
+                const secondFallback = path.join(__dirname, '../uploads/documents', filename);
+                if (fs.existsSync(secondFallback)) {
+                    filePath = secondFallback;
+                } else {
+                    console.error(`[DownloadDoc] File not found. Tried: ${document.path} and ${fallbackPath}`);
+                    return res.status(404).json({ error: 'File not found on server' });
+                }
+            }
         }
 
-        res.download(document.path, document.originalName);
+        res.download(filePath, document.originalName);
     } catch (error) {
         console.error('Error downloading document:', error);
         res.status(500).json({ error: 'Failed to download document' });
