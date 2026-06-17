@@ -35,6 +35,8 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import { Users, Calendar as CalendarIcon, Plus, Search, CheckCircle, AlertCircle, Clock, Eye, EyeOff, Edit, Trash2, Mail, Phone, Download, Briefcase, LogOut, Menu, X, FileText, StickyNote, Upload, FolderOpen, Pin, PinOff, KeyRound, Copy, Globe, Lock, List, Kanban } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
+import PipelineBoard from './components/PipelineBoard';
+
 import { format, subMonths, startOfMonth, eachMonthOfInterval } from 'date-fns';
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend, CategoryScale, LinearScale, BarElement, ChartTitle);
@@ -1956,63 +1958,19 @@ function Dashboard() {
               {loading ? (
                 <div className="text-center py-8 text-gray-400">Loading...</div>
               ) : leadViewMode === 'pipeline' ? (
-                <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
-                  {leadStatusOptions.map(status => (
-                    <div 
-                      key={status} 
-                      className="flex-shrink-0 w-80 bg-white/5 rounded-2xl border border-white/10 flex flex-col snap-start"
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const leadId = e.dataTransfer.getData('text/plain');
-                        if (leadId) handleDragDropLeadStatus(leadId, status);
-                      }}
-                    >
-                      {/* Column Header */}
-                      <div className={`p-4 border-b border-white/10 rounded-t-2xl ${leadStatusColors[status] || 'bg-white/10 text-white'}`}>
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-semibold capitalize">{status.replace('_', ' ')}</h3>
-                          <Badge className="bg-white/20 text-current border-none">
-                            {leads.filter(l => l.status === status).length}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      {/* Column Cards */}
-                      <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[70vh]">
-                        {leads.filter(l => l.status === status).map(lead => (
-                          <div 
-                            key={lead._id || lead.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('text/plain', lead._id || lead.id);
-                              e.dataTransfer.effectAllowed = 'move';
-                            }}
-                            className="bg-gray-900/50 border border-white/10 rounded-xl p-4 cursor-grab active:cursor-grabbing hover:border-white/20 hover:bg-gray-900/80 transition-all shadow-sm"
-                            onClick={() => {
-                              setSelectedLead(lead);
-                              setIsViewLeadOpen(true);
-                            }}
-                          >
-                            <div className="font-medium text-white/90 mb-1">{lead.fullName}</div>
-                            {lead.company && <div className="text-xs text-gray-400 mb-2 truncate"><Briefcase className="inline h-3 w-3 mr-1" />{lead.company}</div>}
-                            <div className="flex justify-between items-center mt-3">
-                              <Badge className={`px-2 py-0.5 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[10px]`}>
-                                {lead.priority}
-                              </Badge>
-                              <div className="text-[10px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
-                            </div>
-                          </div>
-                        ))}
-                        {leads.filter(l => l.status === status).length === 0 && (
-                          <div className="text-center py-8 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl">
-                            Drop leads here
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <PipelineBoard 
+                  leads={leads} 
+                  setLeads={setLeads} 
+                  API={API} 
+                  fetchClients={fetchClients} 
+                  fetchLeads={fetchLeads} 
+                  leadStatusOptions={leadStatusOptions} 
+                  leadStatusColors={leadStatusColors} 
+                  leadPriorityColors={leadPriorityColors} 
+                  leadSourceColors={leadSourceColors} 
+                  setSelectedLead={setSelectedLead} 
+                  setIsViewLeadOpen={setIsViewLeadOpen} 
+                />
               ) : (
                 <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                   {/* Table Header */}

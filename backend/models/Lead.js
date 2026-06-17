@@ -27,6 +27,7 @@ const LeadSchema = new mongoose.Schema(
     notes: { type: String, trim: true, maxlength: 2000 },
     estimated_value: { type: Number, min: 0 },
     currency: { type: String, maxlength: 3, uppercase: true },
+    order: { type: Number, default: 0, index: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', sparse: true },
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   },

@@ -89,7 +89,7 @@ router.get('/', async (req, res) => {
     
     // Get leads with pagination
     const leads = await Lead.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ order: 1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
     
@@ -704,6 +704,33 @@ router.delete('/bulk-delete', async (req, res) => {
   } catch (error) {
     console.error('[leads_bulk_delete] Error bulk deleting leads:', error);
     res.status(500).json({ error: 'Failed to delete leads' });
+  }
+});
+
+// Bulk reorder leads
+router.patch('/reorder', async (req, res) => {
+  try {
+    const { items } = req.body;
+    
+    if (!items || !Array.isArray(items)) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+    
+    const bulkOps = items.map(item => ({
+      updateOne: {
+        filter: { _id: item._id, ownerId: req.user.id },
+        update: { $set: { status: item.status, order: item.order } }
+      }
+    }));
+    
+    if (bulkOps.length > 0) {
+      await Lead.bulkWrite(bulkOps);
+    }
+    
+    res.json({ message: 'Leads reordered successfully' });
+  } catch (error) {
+    console.error('[leads_reorder] Error reordering leads:', error);
+    res.status(500).json({ error: 'Failed to reorder leads' });
   }
 });
 
