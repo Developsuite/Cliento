@@ -7,7 +7,10 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  defaultDropAnimationSideEffects
+  defaultDropAnimationSideEffects,
+  useDroppable,
+  rectIntersection,
+  pointerWithin,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -30,7 +33,7 @@ const SortableLeadCard = ({ lead, leadPriorityColors, leadSourceColors, onClick 
     transform,
     transition,
     isDragging
-  } = useSortable({ id: lead._id || lead.id, data: { ...lead } });
+  } = useSortable({ id: lead._id || lead.id, data: { type: 'lead', status: lead.status, ...lead } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -75,6 +78,19 @@ const LeadCard = ({ lead, leadPriorityColors, leadSourceColors }) => {
   );
 };
 
+// Droppable column wrapper — ensures empty columns are valid drop targets
+const DroppableColumn = ({ id, children }) => {
+  const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'column', status: id } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[70vh] transition-colors duration-200 ${isOver ? 'bg-emerald-500/10 ring-2 ring-inset ring-emerald-500/30 rounded-b-2xl' : ''}`}
+    >
+      {children}
+    </div>
+  );
+};
+
 export default function PipelineBoard({ 
   leads, 
   setLeads, 
@@ -101,6 +117,15 @@ export default function PipelineBoard({
     })
   );
 
+  // Find which status column an id belongs to
+  const findContainer = (id) => {
+    // If the id IS a status column name, return it
+    if (leadStatusOptions.includes(id)) return id;
+    // Otherwise find the lead and return its status
+    const lead = leads.find(l => (l._id || l.id) === id);
+    return lead ? lead.status : null;
+  };
+
   const handleDragStart = (event) => {
     const { active } = event;
     const lead = leads.find(l => (l._id || l.id) === active.id);
@@ -116,34 +141,42 @@ export default function PipelineBoard({
 
     if (activeId === overId) return;
 
-    const isActiveContainer = leadStatusOptions.includes(activeId);
-    const isOverContainer = leadStatusOptions.includes(overId);
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId);
 
-    // Find the lead being dragged
-    const activeLeadItem = leads.find(l => (l._id || l.id) === activeId);
-    if (!activeLeadItem) return;
+    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
-    // Determine target status
-    let overStatus;
-    if (isOverContainer) {
-      overStatus = overId;
-    } else {
-      const overLead = leads.find(l => (l._id || l.id) === overId);
-      if (overLead) overStatus = overLead.status;
-    }
+    // Move to a different column
+    setLeads((prev) => {
+      const activeItems = prev.filter(l => l.status === activeContainer);
+      const overItems = prev.filter(l => l.status === overContainer);
+      
+      const activeIndex = activeItems.findIndex(l => (l._id || l.id) === activeId);
+      
+      // Figure out where in the over column to insert
+      let newIndex;
+      if (leadStatusOptions.includes(overId)) {
+        // Dropped on the column itself — put at end
+        newIndex = overItems.length;
+      } else {
+        const overIndex = overItems.findIndex(l => (l._id || l.id) === overId);
+        const isBelowOverItem = active.rect.current.translated &&
+          active.rect.current.translated.top > over.rect.top + over.rect.height / 2;
+        newIndex = isBelowOverItem ? overIndex + 1 : overIndex;
+      }
 
-    if (!overStatus) return;
-
-    // Optimistic status update during drag over
-    if (activeLeadItem.status !== overStatus) {
-      setLeads((prev) => {
-        return prev.map(l => (l._id || l.id) === activeId ? { ...l, status: overStatus } : l);
+      return prev.map(l => {
+        if ((l._id || l.id) === activeId) {
+          return { ...l, status: overContainer };
+        }
+        return l;
       });
-    }
+    });
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
+    const draggedLead = activeLead;
     setActiveLead(null);
 
     if (!over) return;
@@ -151,39 +184,39 @@ export default function PipelineBoard({
     const activeId = active.id;
     const overId = over.id;
     
-    // Find final state in the current leads array
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId);
+
+    if (!activeContainer || !overContainer) return;
+
+    // Find the lead
     const activeLeadItem = leads.find(l => (l._id || l.id) === activeId);
     if (!activeLeadItem) return;
 
-    // Get the status container it was dropped into
-    let targetStatus = activeLeadItem.status;
-    if (leadStatusOptions.includes(overId)) {
-      targetStatus = overId;
-    } else {
-      const overLead = leads.find(l => (l._id || l.id) === overId);
-      if (overLead) targetStatus = overLead.status;
-    }
-
-    // Reorder leads array
     let updatedLeads = [...leads];
-    
-    const activeIndex = updatedLeads.findIndex(l => (l._id || l.id) === activeId);
-    let overIndex = updatedLeads.findIndex(l => (l._id || l.id) === overId);
 
-    if (activeIndex !== overIndex && overIndex !== -1 && !leadStatusOptions.includes(overId)) {
-       updatedLeads = arrayMove(updatedLeads, activeIndex, overIndex);
+    // Ensure the lead has the correct status
+    updatedLeads = updatedLeads.map(l =>
+      (l._id || l.id) === activeId ? { ...l, status: overContainer } : l
+    );
+
+    // Handle reordering within the same container
+    if (activeContainer === overContainer && !leadStatusOptions.includes(overId)) {
+      const itemsInContainer = updatedLeads.filter(l => l.status === overContainer);
+      const oldIdx = itemsInContainer.findIndex(l => (l._id || l.id) === activeId);
+      const newIdx = itemsInContainer.findIndex(l => (l._id || l.id) === overId);
+      
+      if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+        const reordered = arrayMove(itemsInContainer, oldIdx, newIdx);
+        const otherLeads = updatedLeads.filter(l => l.status !== overContainer);
+        updatedLeads = [...otherLeads, ...reordered];
+      }
     }
     
     // Assign order values based on array index within each status
     let reorderPayload = [];
-    const finalLeads = updatedLeads.map(l => {
-      // Create copy
-      return {...l};
-    });
-
-    // Update order explicitly
     leadStatusOptions.forEach(status => {
-      const leadsInStatus = finalLeads.filter(l => l.status === status);
+      const leadsInStatus = updatedLeads.filter(l => l.status === status);
       leadsInStatus.forEach((l, index) => {
         l.order = index;
         reorderPayload.push({ _id: l._id || l.id, status: l.status, order: l.order });
@@ -191,20 +224,16 @@ export default function PipelineBoard({
     });
 
     // Update UI immediately
-    setLeads(finalLeads);
+    setLeads([...updatedLeads]);
 
     try {
-      const response = await axios.patch(`${API}/leads/reorder`, { items: reorderPayload });
+      await axios.patch(`${API}/leads/reorder`, { items: reorderPayload });
       
       // Check if it was converted
-      if (targetStatus === 'converted' && activeLead && activeLead.status !== 'converted') {
+      if (overContainer === 'converted' && draggedLead && draggedLead.status !== 'converted') {
         toast.success(`Lead converted to client!`);
         fetchClients();
       }
-      
-      // Optional: don't strictly re-fetch immediately if we trust optimistic UI, 
-      // but safe to do it.
-      // fetchLeads();
     } catch (err) {
       console.error(err);
       toast.error('Failed to save lead positions');
@@ -222,10 +251,21 @@ export default function PipelineBoard({
     }),
   };
 
+  // Custom collision detection: prefer pointerWithin for columns, closestCorners for items
+  const collisionDetection = (args) => {
+    // First try pointerWithin for more intuitive column drops
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    // Fallback to closestCorners
+    return closestCorners(args);
+  };
+
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -248,14 +288,14 @@ export default function PipelineBoard({
                 </div>
               </div>
               
-              {/* Column Cards Container */}
-              <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[70vh]">
+              {/* Column Cards Container — wrapped with DroppableColumn */}
+              <DroppableColumn id={status}>
                 <SortableContext 
                   id={status}
                   items={leadsInStatus.map(l => l._id || l.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="flex flex-col gap-3 min-h-[50px]">
+                  <div className="flex flex-col gap-3 min-h-[60px]">
                     {leadsInStatus.map(lead => (
                       <SortableLeadCard 
                         key={lead._id || lead.id} 
@@ -269,13 +309,13 @@ export default function PipelineBoard({
                       />
                     ))}
                     {leadsInStatus.length === 0 && (
-                      <div className="text-center py-8 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl pointer-events-none">
+                      <div className="text-center py-8 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl">
                         Drop leads here
                       </div>
                     )}
                   </div>
                 </SortableContext>
-              </div>
+              </DroppableColumn>
             </div>
           );
         })}

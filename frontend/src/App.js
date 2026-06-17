@@ -2241,20 +2241,20 @@ function Dashboard() {
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.05),transparent_40%)]" />
                       <div className="relative px-4 sm:px-6 pt-4 sm:pt-6">
                         <h3 className="text-lg sm:text-xl font-semibold text-white/90">Schedule New Meeting</h3>
-                        <p className="text-xs sm:text-sm text-white/60">Create a meeting with an existing client</p>
+                        <p className="text-xs sm:text-sm text-white/60">Create a meeting with a client or custom attendee</p>
                       </div>
                     </div>
                     <div className="overflow-y-auto max-h-[calc(95vh-5rem)]">
                       <form onSubmit={handleScheduleMeeting} className="px-4 sm:px-6 py-5 space-y-5">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <Label className="text-white/70 text-xs uppercase tracking-wider">Client *</Label>
+                            <Label className="text-white/70 text-xs uppercase tracking-wider">Client / Attendee *</Label>
                             <Select value={newMeeting.client_id} onValueChange={(v) => setNewMeeting({ ...newMeeting, client_id: v })}>
                               <SelectTrigger className="bg-white/10 border border-white/20 rounded-xl text-white backdrop-blur-xl">
-                                <SelectValue placeholder="Select client" />
+                                <SelectValue placeholder="Select client or custom" />
                               </SelectTrigger>
                               <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
-                                <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
+                                <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">✏️ Type a Custom Name</SelectItem>
                                 {clients.map(c => (
                                   <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                                 ))}
@@ -2291,7 +2291,19 @@ function Dashboard() {
                               className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                             />
                           </div>
-                          <div className="md:col-span-2 space-y-1.5">
+                          {newMeeting.client_id === 'custom' && (
+                            <div className="sm:col-span-2 space-y-1.5">
+                              <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                              <Input
+                                placeholder="E.g. John Doe"
+                                value={newMeeting.customAttendee}
+                                onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
+                                required
+                                className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                              />
+                            </div>
+                          )}
+                          <div className="sm:col-span-2 space-y-1.5">
                             <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                             <Textarea
                               rows={3}
@@ -3664,19 +3676,19 @@ function Dashboard() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.06),transparent_40%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.05),transparent_40%)]" />
             <div className="relative px-6 pt-6">
               <h3 className="text-xl font-semibold text-white/90">Schedule New Meeting</h3>
-              <p className="text-sm text-white/60">Create a meeting with an existing client</p>
+              <p className="text-sm text-white/60">Create a meeting with a client or custom attendee</p>
             </div>
           </div>
           <form onSubmit={handleScheduleMeeting} className="px-6 py-5 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-white/70 text-xs uppercase tracking-wider">Client *</Label>
+                <Label className="text-white/70 text-xs uppercase tracking-wider">Client / Attendee *</Label>
                 <Select value={newMeeting.client_id} onValueChange={(v) => setNewMeeting({ ...newMeeting, client_id: v })}>
                   <SelectTrigger className="bg-white/10 border border-white/20 rounded-xl text-white backdrop-blur-xl">
-                    <SelectValue placeholder="Select client" />
+                    <SelectValue placeholder="Select client or custom" />
                   </SelectTrigger>
                   <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
-                    <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
+                    <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">✏️ Type a Custom Name</SelectItem>
                     {clients.map(c => (
                       <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                     ))}
@@ -3713,15 +3725,18 @@ function Dashboard() {
                   className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                 />
               </div>
-              <div className="md:col-span-2 space-y-1.5">
-                <Label className="text-white/70 text-xs uppercase tracking-wider">Additional Attendee (Optional)</Label>
-                <Input
-                  placeholder="E.g. John Doe"
-                  value={newMeeting.customAttendee}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
-                  className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
-                />
-              </div>
+              {newMeeting.client_id === 'custom' && (
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                  <Input
+                    placeholder="E.g. John Doe"
+                    value={newMeeting.customAttendee}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
+                    required
+                    className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                  />
+                </div>
+              )}
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                 <Textarea
@@ -3954,13 +3969,13 @@ function Dashboard() {
             <form onSubmit={handleUpdateMeeting} className="px-4 sm:px-6 py-4 sm:py-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-white/70 text-xs uppercase tracking-wider">Client *</Label>
+                  <Label className="text-white/70 text-xs uppercase tracking-wider">Client / Attendee *</Label>
                   <Select value={editMeeting.client_id} onValueChange={(v) => setEditMeeting({ ...editMeeting, client_id: v })}>
                     <SelectTrigger className="bg-white/10 border border-white/20 rounded-xl text-white backdrop-blur-xl">
-                      <SelectValue placeholder="Select client" />
+                      <SelectValue placeholder="Select client or custom" />
                     </SelectTrigger>
                     <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
-                      <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
+                      <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">✏️ Type a Custom Name</SelectItem>
                       {clients.map(c => (
                         <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                       ))}
@@ -3996,15 +4011,18 @@ function Dashboard() {
                     className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                   />
                 </div>
-                <div className="md:col-span-2 space-y-1.5">
-                  <Label className="text-white/70 text-xs uppercase tracking-wider">Additional Attendee (Optional)</Label>
-                  <Input
-                    placeholder="E.g. John Doe"
-                    value={editMeeting.customAttendee}
-                    onChange={(e) => setEditMeeting({ ...editMeeting, customAttendee: e.target.value })}
-                    className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
-                  />
-                </div>
+                {editMeeting.client_id === 'custom' && (
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                    <Input
+                      placeholder="E.g. John Doe"
+                      value={editMeeting.customAttendee}
+                      onChange={(e) => setEditMeeting({ ...editMeeting, customAttendee: e.target.value })}
+                      required
+                      className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                    />
+                  </div>
+                )}
                 <div className="md:col-span-2 space-y-1.5">
                   <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                   <Textarea
