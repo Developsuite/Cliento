@@ -27,7 +27,7 @@ router.use((req, res, next) => {
 
 // Validation middleware
 const validateMeeting = [
-  body('client_id').isMongoId().withMessage('Valid client ID is required'),
+  body('client_id').optional({ checkFalsy: true }).isMongoId().withMessage('Valid client ID is required'),
   body('title').trim().isLength({ min: 1, max: 200 }).withMessage('Title is required and must be less than 200 characters'),
   body('date').custom((value) => {
     const date = new Date(value);
@@ -194,14 +194,15 @@ router.post('/', validateMeeting, async (req, res) => {
     
     console.log('[meetings_create] Validation passed, checking client...');
     
-    // Check if client exists and belongs to current user
-    const client = await Client.findOne({ _id: req.body.client_id, user: currentUserId });
-    if (!client) {
-      console.log('[meetings_create] Client not found for:', req.body.client_id, 'user:', currentUserId);
-      return res.status(400).json({ error: 'Client not found' });
+    // Check if client exists and belongs to current user (if provided)
+    if (req.body.client_id) {
+      const client = await Client.findOne({ _id: req.body.client_id, user: currentUserId });
+      if (!client) {
+        console.log('[meetings_create] Client not found for:', req.body.client_id, 'user:', currentUserId);
+        return res.status(400).json({ error: 'Client not found' });
+      }
+      console.log('[meetings_create] Client found:', client.name);
     }
-    
-    console.log('[meetings_create] Client found:', client.name);
     
     // Check if meeting datetime is in the past (combine date + time)
     const { date, time } = req.body;

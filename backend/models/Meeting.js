@@ -10,7 +10,7 @@ const meetingSchema = new mongoose.Schema({
   client_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Client',
-    required: [true, 'Client ID is required']
+    required: false
   },
   title: {
     type: String,

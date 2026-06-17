@@ -980,14 +980,22 @@ function Dashboard() {
     e.preventDefault();
     try {
       const { client_id, title, date, time, customAttendee } = newMeeting;
-      if (!client_id || !title || !date || !time) {
-        toast.error('Please fill in client, title, date and time');
+      
+      const isCustom = client_id === 'custom' || !client_id;
+      
+      if ((isCustom && !customAttendee) || !title || !date || !time) {
+        toast.error('Please fill in client (or custom attendee name), title, date and time');
         return;
       }
       const [yy, mm, dd] = date.split('-').map((v) => parseInt(v, 10));
       const [hh, min] = time.split(':').map((v) => parseInt(v, 10));
       const localDateTime = new Date(yy, (mm || 1) - 1, dd || 1, hh || 0, min || 0, 0);
       const payload = { ...newMeeting, date: localDateTime.toISOString() };
+      
+      if (isCustom) {
+        delete payload.client_id;
+      }
+      
       if (customAttendee && customAttendee.trim() !== '') {
         payload.attendees = [{ name: customAttendee.trim() }];
       }
@@ -1022,14 +1030,22 @@ function Dashboard() {
     if (!selectedMeeting) return;
     try {
       const { client_id, title, date, time, notes, customAttendee } = editMeeting;
-      if (!client_id || !title || !date || !time) {
-        toast.error('Please fill in client, title, date and time');
+      
+      const isCustom = client_id === 'custom' || !client_id;
+      
+      if ((isCustom && !customAttendee) || !title || !date || !time) {
+        toast.error('Please fill in client (or custom attendee name), title, date and time');
         return;
       }
       const [yy, mm, dd] = date.split('-').map((v) => parseInt(v, 10));
       const [hh, min] = time.split(':').map((v) => parseInt(v, 10));
       const localDateTime = new Date(yy, (mm || 1) - 1, dd || 1, hh || 0, min || 0, 0);
-      const payload = { client_id, title, time, notes, date: localDateTime.toISOString() };
+      
+      const payload = { title, time, notes, date: localDateTime.toISOString() };
+      if (!isCustom) {
+        payload.client_id = client_id;
+      }
+      
       if (customAttendee && customAttendee.trim() !== '') {
         payload.attendees = [{ name: customAttendee.trim() }];
       } else {
@@ -2238,6 +2254,7 @@ function Dashboard() {
                                 <SelectValue placeholder="Select client" />
                               </SelectTrigger>
                               <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
+                                <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
                                 {clients.map(c => (
                                   <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                                 ))}
@@ -2333,7 +2350,7 @@ function Dashboard() {
                                 <div className="text-xs text-white/70">{format(new Date(meeting.date), 'MMM dd, yyyy')} · {meeting.time}</div>
                               </div>
                               <div className="text-sm text-white/70 mt-1">
-                                {client ? `with ${client.name}` : ''}
+                                {client ? `with ${client.name}` : (meeting.attendees && meeting.attendees.length > 0 ? `with ${meeting.attendees[0].name}` : '')}
                               </div>
                               {meeting.notes && (
                                 <div className="text-sm text-white/60 mt-1 line-clamp-2">{meeting.notes}</div>
@@ -2357,11 +2374,12 @@ function Dashboard() {
                                   onClick={() => {
                                     setSelectedMeeting(meeting);
                                     setEditMeeting({
-                                      client_id: meeting.client_id?._id || meeting.client_id,
+                                      client_id: (meeting.client_id?._id || meeting.client_id) || (meeting.attendees && meeting.attendees.length > 0 ? 'custom' : ''),
                                       title: meeting.title || '',
                                       date: meeting.date ? new Date(meeting.date).toISOString().slice(0, 10) : '',
                                       time: meeting.time || '',
-                                      notes: meeting.notes || ''
+                                      notes: meeting.notes || '',
+                                      customAttendee: meeting.attendees && meeting.attendees.length > 0 ? meeting.attendees[0].name : ''
                                     });
                                     setIsEditMeetingOpen(true);
                                   }}
@@ -3658,6 +3676,7 @@ function Dashboard() {
                     <SelectValue placeholder="Select client" />
                   </SelectTrigger>
                   <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
+                    <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
                     {clients.map(c => (
                       <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                     ))}
@@ -3906,7 +3925,7 @@ function Dashboard() {
                   onClick={() => {
                     setIsViewMeetingOpen(false);
                     setEditMeeting({
-                      client_id: selectedMeeting.client_id?._id || selectedMeeting.client_id,
+                      client_id: (selectedMeeting.client_id?._id || selectedMeeting.client_id) || (selectedMeeting.attendees && selectedMeeting.attendees.length > 0 ? 'custom' : ''),
                       title: selectedMeeting.title || '',
                       date: selectedMeeting.date ? new Date(selectedMeeting.date).toISOString().slice(0, 10) : '',
                       time: selectedMeeting.time || '',
@@ -3941,6 +3960,7 @@ function Dashboard() {
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                     <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
+                      <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">-- Custom Name --</SelectItem>
                       {clients.map(c => (
                         <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                       ))}
