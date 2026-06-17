@@ -32,7 +32,7 @@ import { Pie, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend, CategoryScale, LinearScale, BarElement, Title as ChartTitle } from 'chart.js';
 
 // Icons
-import { Users, Calendar as CalendarIcon, Plus, Search, CheckCircle, AlertCircle, Clock, Eye, EyeOff, Edit, Trash2, Mail, Phone, Download, Briefcase, LogOut, Menu, X, FileText, StickyNote, Upload, FolderOpen, Pin, PinOff, KeyRound, Copy, Globe, Lock } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Plus, Search, CheckCircle, AlertCircle, Clock, Eye, EyeOff, Edit, Trash2, Mail, Phone, Download, Briefcase, LogOut, Menu, X, FileText, StickyNote, Upload, FolderOpen, Pin, PinOff, KeyRound, Copy, Globe, Lock, List, Kanban } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import { format, subMonths, startOfMonth, eachMonthOfInterval } from 'date-fns';
@@ -157,6 +157,7 @@ function Dashboard() {
 
   // Leads state
   const [leads, setLeads] = useState([]);
+  const [leadViewMode, setLeadViewMode] = useState('list');
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [newLead, setNewLead] = useState({
     fullName: '',
@@ -441,6 +442,7 @@ function Dashboard() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+      params.append('limit', '1000');
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
       const response = await axios.get(`${API}/clients?${params}`);
@@ -455,7 +457,7 @@ function Dashboard() {
 
   const fetchMeetings = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/meetings`);
+      const response = await axios.get(`${API}/meetings?limit=1000`);
       setMeetings(response.data.meetings || response.data || []);
     } catch (err) {
       console.error(err);
@@ -465,7 +467,7 @@ function Dashboard() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/projects`);
+      const response = await axios.get(`${API}/projects?limit=1000`);
       setProjects(response.data.projects || []);
     } catch (err) {
       console.error(err);
@@ -476,6 +478,7 @@ function Dashboard() {
   const fetchLeads = useCallback(async () => {
     try {
       const params = new URLSearchParams();
+      params.append('limit', '1000');
       if (leadSearch) params.append('search', leadSearch);
       if (leadStatusFilter && leadStatusFilter !== 'all') params.append('status', leadStatusFilter);
       if (leadSourceFilter && leadSourceFilter !== 'all') params.append('source', leadSourceFilter);
@@ -488,6 +491,37 @@ function Dashboard() {
       toast.error('Failed to fetch leads');
     }
   }, [leadSearch, leadStatusFilter, leadSourceFilter, leadPriorityFilter]);
+
+  const handleDragDropLeadStatus = async (leadId, newStatus) => {
+    const lead = leads.find(l => (l._id || l.id) === leadId);
+    if (!lead || lead.status === newStatus) return;
+
+    const previousStatus = lead.status;
+    
+    // Optimistic UI update
+    setLeads(prevLeads => prevLeads.map(l => 
+      (l._id || l.id) === leadId ? { ...l, status: newStatus } : l
+    ));
+
+    try {
+      const payload = { ...lead, status: newStatus };
+      const response = await axios.put(`${API}/leads/${leadId}`, payload);
+      
+      if (response.data.convertedToClient) {
+        toast.success(`Lead converted to client!`);
+        fetchClients();
+      }
+      // Re-fetch to ensure sync
+      fetchLeads();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update lead status');
+      // Revert on error
+      setLeads(prevLeads => prevLeads.map(l => 
+        (l._id || l.id) === leadId ? { ...l, status: previousStatus } : l
+      ));
+    }
+  };
 
   // Documents fetch & handlers
   const fetchDocuments = useCallback(async () => {
@@ -1808,8 +1842,46 @@ function Dashboard() {
           {activeTab === 'leads' && (
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-300 to-sky-300 bg-clip-text text-transparent">Leads Development</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-emerald-300 to-sky-300 bg-clip-text text-transparent">Leads Development</h2>
+                  <div className="hidden sm:flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+                    <Button 
+                      variant={leadViewMode === 'list' ? 'default' : 'ghost'} 
+                      size="sm"
+                      className={`rounded-lg h-8 px-3 ${leadViewMode === 'list' ? 'bg-emerald-600/50 text-white' : 'text-white/60 hover:text-white'}`}
+                      onClick={() => setLeadViewMode('list')}
+                    >
+                      <List className="h-4 w-4 mr-1.5" /> List
+                    </Button>
+                    <Button 
+                      variant={leadViewMode === 'pipeline' ? 'default' : 'ghost'} 
+                      size="sm"
+                      className={`rounded-lg h-8 px-3 ${leadViewMode === 'pipeline' ? 'bg-emerald-600/50 text-white' : 'text-white/60 hover:text-white'}`}
+                      onClick={() => setLeadViewMode('pipeline')}
+                    >
+                      <Kanban className="h-4 w-4 mr-1.5" /> Pipeline
+                    </Button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
+                  <div className="sm:hidden flex w-full items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 mb-2">
+                    <Button 
+                      variant={leadViewMode === 'list' ? 'default' : 'ghost'} 
+                      size="sm"
+                      className={`flex-1 rounded-lg ${leadViewMode === 'list' ? 'bg-emerald-600/50 text-white' : 'text-white/60 hover:text-white'}`}
+                      onClick={() => setLeadViewMode('list')}
+                    >
+                      <List className="h-4 w-4 mr-1.5" /> List
+                    </Button>
+                    <Button 
+                      variant={leadViewMode === 'pipeline' ? 'default' : 'ghost'} 
+                      size="sm"
+                      className={`flex-1 rounded-lg ${leadViewMode === 'pipeline' ? 'bg-emerald-600/50 text-white' : 'text-white/60 hover:text-white'}`}
+                      onClick={() => setLeadViewMode('pipeline')}
+                    >
+                      <Kanban className="h-4 w-4 mr-1.5" /> Pipeline
+                    </Button>
+                  </div>
                   <Button variant="ghost" className="rounded-xl text-white hover:bg-white/10" onClick={handleExportLeads}>
                     <Download className="mr-2 h-4 w-4" /> Export
                   </Button>
@@ -1880,9 +1952,67 @@ function Dashboard() {
                 </Select>
               </div>
 
-              {/* Leads List View - Brief */}
+              {/* Leads View */}
               {loading ? (
                 <div className="text-center py-8 text-gray-400">Loading...</div>
+              ) : leadViewMode === 'pipeline' ? (
+                <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+                  {leadStatusOptions.map(status => (
+                    <div 
+                      key={status} 
+                      className="flex-shrink-0 w-80 bg-white/5 rounded-2xl border border-white/10 flex flex-col snap-start"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const leadId = e.dataTransfer.getData('text/plain');
+                        if (leadId) handleDragDropLeadStatus(leadId, status);
+                      }}
+                    >
+                      {/* Column Header */}
+                      <div className={`p-4 border-b border-white/10 rounded-t-2xl ${leadStatusColors[status] || 'bg-white/10 text-white'}`}>
+                        <div className="flex justify-between items-center">
+                          <h3 className="font-semibold capitalize">{status.replace('_', ' ')}</h3>
+                          <Badge className="bg-white/20 text-current border-none">
+                            {leads.filter(l => l.status === status).length}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      {/* Column Cards */}
+                      <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[70vh]">
+                        {leads.filter(l => l.status === status).map(lead => (
+                          <div 
+                            key={lead._id || lead.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', lead._id || lead.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            className="bg-gray-900/50 border border-white/10 rounded-xl p-4 cursor-grab active:cursor-grabbing hover:border-white/20 hover:bg-gray-900/80 transition-all shadow-sm"
+                            onClick={() => {
+                              setSelectedLead(lead);
+                              setIsViewLeadOpen(true);
+                            }}
+                          >
+                            <div className="font-medium text-white/90 mb-1">{lead.fullName}</div>
+                            {lead.company && <div className="text-xs text-gray-400 mb-2 truncate"><Briefcase className="inline h-3 w-3 mr-1" />{lead.company}</div>}
+                            <div className="flex justify-between items-center mt-3">
+                              <Badge className={`px-2 py-0.5 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[10px]`}>
+                                {lead.priority}
+                              </Badge>
+                              <div className="text-[10px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {leads.filter(l => l.status === status).length === 0 && (
+                          <div className="text-center py-8 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl">
+                            Drop leads here
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
                   {/* Table Header */}
