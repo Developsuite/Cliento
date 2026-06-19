@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCorners,
@@ -47,16 +47,16 @@ const SortableLeadCard = ({ lead, leadPriorityColors, leadSourceColors, onClick 
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-gray-900/50 border border-white/10 rounded-xl p-4 cursor-grab active:cursor-grabbing hover:border-white/20 hover:bg-gray-900/80 transition-all shadow-sm ${isDragging ? 'z-50 ring-2 ring-emerald-500 shadow-xl' : ''}`}
+      className={`bg-gray-900/50 border border-white/10 rounded-lg p-2.5 cursor-grab active:cursor-grabbing hover:border-white/20 hover:bg-gray-900/80 transition-all shadow-sm ${isDragging ? 'z-50 ring-1 ring-emerald-500 shadow-md' : ''}`}
       onClick={onClick}
     >
-      <div className="font-medium text-white/90 mb-1 pointer-events-none">{lead.fullName}</div>
-      {lead.company && <div className="text-xs text-gray-400 mb-2 truncate pointer-events-none"><Briefcase className="inline h-3 w-3 mr-1" />{lead.company}</div>}
-      <div className="flex justify-between items-center mt-3 pointer-events-none">
-        <Badge className={`px-2 py-0.5 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[10px]`}>
+      <div className="text-sm font-medium text-white/90 mb-0.5 pointer-events-none truncate">{lead.fullName}</div>
+      {lead.company && <div className="text-[10px] text-gray-400 mb-1.5 truncate pointer-events-none"><Briefcase className="inline h-2.5 w-2.5 mr-1" />{lead.company}</div>}
+      <div className="flex justify-between items-center mt-2 pointer-events-none">
+        <Badge className={`px-1.5 py-0 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[9px]`}>
           {lead.priority}
         </Badge>
-        <div className="text-[10px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
+        <div className="text-[9px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
       </div>
     </div>
   );
@@ -65,14 +65,14 @@ const SortableLeadCard = ({ lead, leadPriorityColors, leadSourceColors, onClick 
 // A generic LeadCard for DragOverlay
 const LeadCard = ({ lead, leadPriorityColors, leadSourceColors }) => {
   return (
-    <div className="bg-gray-800 border-2 border-emerald-500/50 rounded-xl p-4 shadow-2xl opacity-90 rotate-2 scale-105">
-      <div className="font-medium text-white/90 mb-1">{lead.fullName}</div>
-      {lead.company && <div className="text-xs text-gray-400 mb-2 truncate"><Briefcase className="inline h-3 w-3 mr-1" />{lead.company}</div>}
-      <div className="flex justify-between items-center mt-3">
-        <Badge className={`px-2 py-0.5 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[10px]`}>
+    <div className="bg-gray-800 border border-emerald-500/50 rounded-lg p-2.5 shadow-xl opacity-90 rotate-2 scale-105">
+      <div className="text-sm font-medium text-white/90 mb-0.5 truncate">{lead.fullName}</div>
+      {lead.company && <div className="text-[10px] text-gray-400 mb-1.5 truncate"><Briefcase className="inline h-2.5 w-2.5 mr-1" />{lead.company}</div>}
+      <div className="flex justify-between items-center mt-2">
+        <Badge className={`px-1.5 py-0 rounded-full border border-white/10 bg-white/5 ${leadPriorityColors[lead.priority] || ''} text-[9px]`}>
           {lead.priority}
         </Badge>
-        <div className="text-[10px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
+        <div className="text-[9px] text-gray-500 capitalize">{lead.source.replace('_', ' ')}</div>
       </div>
     </div>
   );
@@ -84,7 +84,7 @@ const DroppableColumn = ({ id, children }) => {
   return (
     <div
       ref={setNodeRef}
-      className={`p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[70vh] transition-colors duration-200 ${isOver ? 'bg-emerald-500/10 ring-2 ring-inset ring-emerald-500/30 rounded-b-2xl' : ''}`}
+      className={`p-2 flex flex-col gap-2 flex-1 overflow-y-auto max-h-[70vh] transition-colors duration-200 ${isOver ? (id === 'dropped' ? 'bg-red-500/10 ring-1 ring-inset ring-red-500/30 rounded-b-xl' : 'bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/30 rounded-b-xl') : ''}`}
     >
       {children}
     </div>
@@ -99,12 +99,18 @@ export default function PipelineBoard({
   fetchLeads, 
   leadStatusOptions, 
   leadStatusColors, 
+  leadStatusLabels,
   leadPriorityColors, 
   leadSourceColors, 
   setSelectedLead, 
   setIsViewLeadOpen 
 }) {
   const [activeLead, setActiveLead] = useState(null);
+  const [localLeads, setLocalLeads] = useState(leads);
+
+  useEffect(() => {
+    setLocalLeads(leads);
+  }, [leads]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -119,16 +125,14 @@ export default function PipelineBoard({
 
   // Find which status column an id belongs to
   const findContainer = (id) => {
-    // If the id IS a status column name, return it
     if (leadStatusOptions.includes(id)) return id;
-    // Otherwise find the lead and return its status
-    const lead = leads.find(l => (l._id || l.id) === id);
+    const lead = localLeads.find(l => (l._id || l.id) === id);
     return lead ? lead.status : null;
   };
 
   const handleDragStart = (event) => {
     const { active } = event;
-    const lead = leads.find(l => (l._id || l.id) === active.id);
+    const lead = localLeads.find(l => (l._id || l.id) === active.id);
     setActiveLead(lead);
   };
 
@@ -147,16 +151,16 @@ export default function PipelineBoard({
     if (!activeContainer || !overContainer || activeContainer === overContainer) return;
 
     // Move to a different column
-    setLeads((prev) => {
-      const activeItems = prev.filter(l => l.status === activeContainer);
+    setLocalLeads((prev) => {
+      const prevCopy = [...prev];
+      const activeItemIndex = prevCopy.findIndex(l => (l._id || l.id) === activeId);
+      if (activeItemIndex === -1) return prev;
+      
+      const activeItem = prevCopy[activeItemIndex];
       const overItems = prev.filter(l => l.status === overContainer);
       
-      const activeIndex = activeItems.findIndex(l => (l._id || l.id) === activeId);
-      
-      // Figure out where in the over column to insert
       let newIndex;
       if (leadStatusOptions.includes(overId)) {
-        // Dropped on the column itself — put at end
         newIndex = overItems.length;
       } else {
         const overIndex = overItems.findIndex(l => (l._id || l.id) === overId);
@@ -165,12 +169,23 @@ export default function PipelineBoard({
         newIndex = isBelowOverItem ? overIndex + 1 : overIndex;
       }
 
-      return prev.map(l => {
-        if ((l._id || l.id) === activeId) {
-          return { ...l, status: overContainer };
-        }
-        return l;
-      });
+      // Update the status of the active item
+      const updatedItem = { ...activeItem, status: overContainer };
+      
+      // Remove from old position
+      prevCopy.splice(activeItemIndex, 1);
+      
+      // Find where to insert in the global array
+      const itemsInTargetStatus = prevCopy.filter(l => l.status === overContainer);
+      let insertIndex = prevCopy.length;
+      
+      if (newIndex < itemsInTargetStatus.length) {
+         const targetItem = itemsInTargetStatus[newIndex];
+         insertIndex = prevCopy.findIndex(l => (l._id || l.id) === (targetItem._id || targetItem.id));
+      }
+      
+      prevCopy.splice(insertIndex, 0, updatedItem);
+      return prevCopy;
     });
   };
 
@@ -189,27 +204,40 @@ export default function PipelineBoard({
 
     if (!activeContainer || !overContainer) return;
 
-    // Find the lead
-    const activeLeadItem = leads.find(l => (l._id || l.id) === activeId);
-    if (!activeLeadItem) return;
+    // AUTO-DELETE: If dropped into the 'dropped' (Delete) column, delete the lead
+    if (overContainer === 'dropped' && draggedLead && draggedLead.status !== 'dropped') {
+      const confirmDelete = window.confirm(`Are you sure you want to delete "${draggedLead.fullName}"? This action cannot be undone.`);
+      
+      if (confirmDelete) {
+        // Remove from local state immediately
+        setLocalLeads(prev => prev.filter(l => (l._id || l.id) !== activeId));
+        setLeads(prev => prev.filter(l => (l._id || l.id) !== activeId));
+        
+        try {
+          await axios.delete(`${API}/leads/${activeId}`);
+          toast.success(`Lead "${draggedLead.fullName}" deleted successfully`);
+          fetchLeads(); // Re-sync with server
+        } catch (err) {
+          console.error(err);
+          toast.error('Failed to delete lead');
+          fetchLeads(); // Revert on failure
+        }
+      } else {
+        // User cancelled — revert to original position
+        fetchLeads();
+      }
+      return;
+    }
 
-    let updatedLeads = [...leads];
-
-    // Ensure the lead has the correct status
-    updatedLeads = updatedLeads.map(l =>
-      (l._id || l.id) === activeId ? { ...l, status: overContainer } : l
-    );
+    let updatedLeads = [...localLeads];
 
     // Handle reordering within the same container
-    if (activeContainer === overContainer && !leadStatusOptions.includes(overId)) {
-      const itemsInContainer = updatedLeads.filter(l => l.status === overContainer);
-      const oldIdx = itemsInContainer.findIndex(l => (l._id || l.id) === activeId);
-      const newIdx = itemsInContainer.findIndex(l => (l._id || l.id) === overId);
+    if (activeContainer === overContainer && activeId !== overId) {
+      const activeIdx = updatedLeads.findIndex(l => (l._id || l.id) === activeId);
+      const overIdx = updatedLeads.findIndex(l => (l._id || l.id) === overId);
       
-      if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
-        const reordered = arrayMove(itemsInContainer, oldIdx, newIdx);
-        const otherLeads = updatedLeads.filter(l => l.status !== overContainer);
-        updatedLeads = [...otherLeads, ...reordered];
+      if (activeIdx !== -1 && overIdx !== -1) {
+        updatedLeads = arrayMove(updatedLeads, activeIdx, overIdx);
       }
     }
     
@@ -224,7 +252,8 @@ export default function PipelineBoard({
     });
 
     // Update UI immediately
-    setLeads([...updatedLeads]);
+    setLocalLeads([...updatedLeads]);
+    setLeads([...updatedLeads]); // Sync global state on drop end
 
     try {
       await axios.patch(`${API}/leads/reorder`, { items: reorderPayload });
@@ -270,19 +299,19 @@ export default function PipelineBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+      <div className="flex gap-3 overflow-x-auto pb-2 snap-x scrollbar-thin">
         {leadStatusOptions.map(status => {
-          const leadsInStatus = leads.filter(l => l.status === status);
+          const leadsInStatus = localLeads.filter(l => l.status === status);
           return (
             <div 
               key={status} 
-              className="flex-shrink-0 w-80 bg-white/5 rounded-2xl border border-white/10 flex flex-col snap-start"
+              className="flex-shrink-0 w-64 bg-white/5 rounded-xl border border-white/10 flex flex-col snap-start"
             >
               {/* Column Header */}
-              <div className={`p-4 border-b border-white/10 rounded-t-2xl ${leadStatusColors[status] || 'bg-white/10 text-white'}`}>
+              <div className={`p-2.5 border-b border-white/10 rounded-t-xl ${leadStatusColors[status] || 'bg-white/10 text-white'}`}>
                 <div className="flex justify-between items-center">
-                  <h3 className="font-semibold capitalize">{status.replace('_', ' ')}</h3>
-                  <Badge className="bg-white/20 text-current border-none">
+                  <h3 className="text-sm font-semibold">{(leadStatusLabels && leadStatusLabels[status]) || status.replace('_', ' ')}</h3>
+                  <Badge className="bg-white/20 text-current border-none text-[10px] px-1.5 py-0">
                     {leadsInStatus.length}
                   </Badge>
                 </div>
@@ -295,7 +324,7 @@ export default function PipelineBoard({
                   items={leadsInStatus.map(l => l._id || l.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="flex flex-col gap-3 min-h-[60px]">
+                  <div className="flex flex-col gap-2 min-h-[40px]">
                     {leadsInStatus.map(lead => (
                       <SortableLeadCard 
                         key={lead._id || lead.id} 
@@ -309,8 +338,8 @@ export default function PipelineBoard({
                       />
                     ))}
                     {leadsInStatus.length === 0 && (
-                      <div className="text-center py-8 text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl">
-                        Drop leads here
+                      <div className={`text-center py-8 text-sm border-2 border-dashed rounded-xl ${status === 'dropped' ? 'text-red-300/30 border-red-500/10' : 'text-white/20 border-white/5'}`}>
+                        {status === 'dropped' ? 'Drop leads here to delete' : 'Drop leads here'}
                       </div>
                     )}
                   </div>

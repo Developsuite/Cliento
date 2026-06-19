@@ -305,6 +305,16 @@ function Dashboard() {
   const leadSourceOptions = useMemo(() => ['website', 'referral', 'facebook', 'linkedin', 'whatsapp', 'marketing', 'cold_call', 'trade_show', 'other'], []);
   const leadPriorityOptions = useMemo(() => ['low', 'medium', 'high'], []);
 
+  const leadStatusLabels = useMemo(() => ({
+    new: 'New',
+    contacted: 'Not Respond',
+    in_progress: 'Meeting',
+    qualified: 'Reminder',
+    proposal: 'WhatsApp Proposal',
+    converted: 'Converted',
+    dropped: 'Delete'
+  }), []);
+
   const leadStatusColors = useMemo(() => ({
     new: 'bg-blue-100 text-blue-800',
     contacted: 'bg-yellow-100 text-yellow-800',
@@ -1917,7 +1927,7 @@ function Dashboard() {
                 {leadStatusOptions.map((s) => (
                   <Card key={s} className="bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all duration-300">
                     <CardContent className="p-3">
-                      <div className="text-xs text-white/60 capitalize">{s.replace('_', ' ')}</div>
+                      <div className="text-xs text-white/60">{leadStatusLabels[s] || s.replace('_', ' ')}</div>
                       <div className={`text-2xl font-semibold ${leadStatusNumberText[s] || 'text-white'}`}>{leadStatusCounts[s] || 0}</div>
                     </CardContent>
                   </Card>
@@ -1942,7 +1952,7 @@ function Dashboard() {
                   <SelectContent className="bg-white/10 border border-white/20 rounded-2xl shadow-2xl backdrop-blur-xl text-white">
                     <SelectItem value="all" className="text-white/90 hover:bg-white/15 focus:bg-white/15 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded-lg m-1 px-3.5 py-2.5">All Statuses</SelectItem>
                     {leadStatusOptions.map(s => (
-                      <SelectItem key={s} value={s} className="text-white/90 hover:bg-white/15 focus:bg-white/15 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded-lg m-1 px-3.5 py-2.5 capitalize">{s.replace('_', ' ')}</SelectItem>
+                      <SelectItem key={s} value={s} className="text-white/90 hover:bg-white/15 focus:bg-white/15 data-[state=checked]:bg-white/20 data-[state=checked]:text-white rounded-lg m-1 px-3.5 py-2.5">{leadStatusLabels[s] || s.replace('_', ' ')}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1982,6 +1992,7 @@ function Dashboard() {
                   fetchLeads={fetchLeads} 
                   leadStatusOptions={leadStatusOptions} 
                   leadStatusColors={leadStatusColors} 
+                  leadStatusLabels={leadStatusLabels} 
                   leadPriorityColors={leadPriorityColors} 
                   leadSourceColors={leadSourceColors} 
                   setSelectedLead={setSelectedLead} 
@@ -2013,7 +2024,7 @@ function Dashboard() {
                       {/* Status */}
                       <div className="col-span-1">
                         <Badge className={`px-2.5 py-1 rounded-full border border-white/10 bg-white/5 ${leadStatusColors[lead.status] || ''} text-xs`}>
-                          {lead.status.replace('_', ' ')}
+                          {leadStatusLabels[lead.status] || lead.status.replace('_', ' ')}
                         </Badge>
                       </div>
 
@@ -4458,7 +4469,7 @@ function Dashboard() {
                     </SelectTrigger>
                     <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
                       {leadStatusOptions.map((s) => (
-                        <SelectItem key={s} value={s} className="text-white/90 hover:bg-white/15 focus:bg-white/15 capitalize">{s.replace('_', ' ')}</SelectItem>
+                        <SelectItem key={s} value={s} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{leadStatusLabels[s] || s.replace('_', ' ')}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -4549,7 +4560,7 @@ function Dashboard() {
                   <div className="space-y-1">
                     <div className="text-xs text-white/60 uppercase tracking-wider">Status</div>
                     <Badge className={`px-2 py-1 rounded-full ${leadStatusColors[selectedLead.status] || ''}`}>
-                      {selectedLead.status?.replace('_', ' ')}
+                      {leadStatusLabels[selectedLead.status] || selectedLead.status?.replace('_', ' ')}
                     </Badge>
                   </div>
                   <div className="space-y-1">
