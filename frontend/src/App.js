@@ -2265,13 +2265,27 @@ function Dashboard() {
                                 <SelectValue placeholder="Select client or custom" />
                               </SelectTrigger>
                               <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
-                                <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">✏️ Type a Custom Name</SelectItem>
+                                <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">
+                                  {newMeeting.client_id === 'custom' && newMeeting.customAttendee ? `✏️ Custom: ${newMeeting.customAttendee}` : '✏️ Type a Custom Name'}
+                                </SelectItem>
                                 {clients.map(c => (
                                   <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           </div>
+                          {newMeeting.client_id === 'custom' && (
+                            <div className="sm:col-span-2 space-y-1.5">
+                              <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                              <Input
+                                placeholder="E.g. John Doe"
+                                value={newMeeting.customAttendee}
+                                onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
+                                required
+                                className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                              />
+                            </div>
+                          )}
                           <div className="space-y-1.5">
                             <Label className="text-white/70 text-xs uppercase tracking-wider">Title *</Label>
                             <Input
@@ -2302,18 +2316,7 @@ function Dashboard() {
                               className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                             />
                           </div>
-                          {newMeeting.client_id === 'custom' && (
-                            <div className="sm:col-span-2 space-y-1.5">
-                              <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
-                              <Input
-                                placeholder="E.g. John Doe"
-                                value={newMeeting.customAttendee}
-                                onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
-                                required
-                                className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
-                              />
-                            </div>
-                          )}
+
                           <div className="sm:col-span-2 space-y-1.5">
                             <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                             <Textarea
@@ -3706,6 +3709,18 @@ function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              {newMeeting.client_id === 'custom' && (
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                  <Input
+                    placeholder="E.g. John Doe"
+                    value={newMeeting.customAttendee}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
+                    required
+                    className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-white/70 text-xs uppercase tracking-wider">Title *</Label>
                 <Input
@@ -3736,18 +3751,7 @@ function Dashboard() {
                   className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                 />
               </div>
-              {newMeeting.client_id === 'custom' && (
-                <div className="md:col-span-2 space-y-1.5">
-                  <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
-                  <Input
-                    placeholder="E.g. John Doe"
-                    value={newMeeting.customAttendee}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, customAttendee: e.target.value })}
-                    required
-                    className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
-                  />
-                </div>
-              )}
+
               <div className="md:col-span-2 space-y-1.5">
                 <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                 <Textarea
@@ -3986,13 +3990,27 @@ function Dashboard() {
                       <SelectValue placeholder="Select client or custom" />
                     </SelectTrigger>
                     <SelectContent className="bg-white/10 border border-white/20 rounded-xl backdrop-blur-xl">
-                      <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">✏️ Type a Custom Name</SelectItem>
+                      <SelectItem value="custom" className="text-white/90 hover:bg-white/15 focus:bg-white/15 italic text-sky-300">
+                        {editMeeting.client_id === 'custom' && editMeeting.customAttendee ? `✏️ Custom: ${editMeeting.customAttendee}` : '✏️ Type a Custom Name'}
+                      </SelectItem>
                       {clients.map(c => (
                         <SelectItem key={c._id || c.id} value={c._id || c.id} className="text-white/90 hover:bg-white/15 focus:bg-white/15">{c.name} — {c.business_name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+                {editMeeting.client_id === 'custom' && (
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
+                    <Input
+                      placeholder="E.g. John Doe"
+                      value={editMeeting.customAttendee}
+                      onChange={(e) => setEditMeeting({ ...editMeeting, customAttendee: e.target.value })}
+                      required
+                      className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
+                    />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label className="text-white/70 text-xs uppercase tracking-wider">Title *</Label>
                   <Input
@@ -4022,18 +4040,7 @@ function Dashboard() {
                     className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-white/30 focus:border-white/30 transition"
                   />
                 </div>
-                {editMeeting.client_id === 'custom' && (
-                  <div className="md:col-span-2 space-y-1.5">
-                    <Label className="text-white/70 text-xs uppercase tracking-wider">Attendee Name *</Label>
-                    <Input
-                      placeholder="E.g. John Doe"
-                      value={editMeeting.customAttendee}
-                      onChange={(e) => setEditMeeting({ ...editMeeting, customAttendee: e.target.value })}
-                      required
-                      className="bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/60 focus:ring-2 focus:ring-sky-400/40 focus:border-sky-400/40 transition ring-1 ring-sky-400/20"
-                    />
-                  </div>
-                )}
+
                 <div className="md:col-span-2 space-y-1.5">
                   <Label className="text-white/70 text-xs uppercase tracking-wider">Notes</Label>
                   <Textarea

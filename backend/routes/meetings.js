@@ -274,19 +274,7 @@ router.put('/:id', validateMeeting, async (req, res) => {
       }
     }
     
-    // Check if meeting datetime is in the past (combine date + time)
-    if (req.body.date || req.body.time) {
-      const date = req.body.date ? new Date(req.body.date) : existingMeeting.date;
-      const time = req.body.time || existingMeeting.time;
-      const meetingDateTime = new Date(date);
-      if (typeof time === 'string' && time.includes(':')) {
-        const [h, m] = time.split(':');
-        meetingDateTime.setHours(parseInt(h), parseInt(m), 0, 0);
-      }
-      if (meetingDateTime < new Date()) {
-        return res.status(400).json({ error: 'Meeting datetime cannot be in the past' });
-      }
-    }
+
     
     const meeting = await Meeting.findOneAndUpdate(
       { _id: id, user: req.user.id },
