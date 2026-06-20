@@ -1054,6 +1054,8 @@ function Dashboard() {
       const payload = { title, time, notes, date: localDateTime.toISOString() };
       if (!isCustom) {
         payload.client_id = client_id;
+      } else {
+        payload.client_id = null;
       }
       
       if (customAttendee && customAttendee.trim() !== '') {
@@ -1660,12 +1662,10 @@ function Dashboard() {
 
               {(() => {
                 const recentClients = [...clients]
-                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-                  .slice(0, 3);
+                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 const upcoming = [...meetings]
                   .filter((m) => new Date(m.date) >= new Date())
-                  .sort((a, b) => new Date(a.date) - new Date(b.date))
-                  .slice(0, 3);
+                  .sort((a, b) => new Date(a.date) - new Date(b.date));
                 return (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
                     <Card className="bg-white/5 border border-white/10 rounded-2xl hover:border-white/20 transition-all duration-300">
@@ -1678,7 +1678,7 @@ function Dashboard() {
                         </div>
                         <CardDescription className="text-white/60">Recent clients and quick action</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-4 space-y-3">
+                      <CardContent className="p-4 space-y-3 max-h-[350px] overflow-y-auto pr-2">
                         {recentClients.length === 0 ? (
                           <div className="text-gray-400">No clients yet</div>
                         ) : (
@@ -1705,7 +1705,7 @@ function Dashboard() {
                         </div>
                         <CardDescription className="text-white/60">Next few meetings at a glance</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-4 space-y-3">
+                      <CardContent className="p-4 space-y-3 max-h-[350px] overflow-y-auto pr-2">
                         {upcoming.length === 0 ? (
                           <div className="text-gray-400">No upcoming meetings</div>
                         ) : (
@@ -1717,7 +1717,7 @@ function Dashboard() {
                                   <div className="font-medium text-white/90">{m.title}</div>
                                   <div className="text-xs text-white/70">{format(new Date(m.date), 'MMM dd, yyyy')} · {m.time}</div>
                                 </div>
-                                <div className="text-xs text-white/60 mt-1">{client ? `with ${client.name}` : ''}</div>
+                                <div className="text-xs text-white/60 mt-1">{client ? `with ${client.name}` : (m.attendees && m.attendees.length > 0 ? `with ${m.attendees[0].name}` : '')}</div>
                               </div>
                             );
                           })
@@ -2363,8 +2363,8 @@ function Dashboard() {
                     {sortedDisplayedMeetings.length === 0 ? (
                       <div className="text-center text-gray-400 py-8">No meetings found</div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {sortedDisplayedMeetings.slice(0, 20).map((meeting) => {
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2">
+                        {sortedDisplayedMeetings.map((meeting) => {
                           const client = clients.find((c) => (c._id || c.id) === meeting.client_id);
                           return (
                             <div key={meeting._id || meeting.id} className="p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition">
