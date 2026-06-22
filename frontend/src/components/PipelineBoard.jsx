@@ -204,30 +204,8 @@ export default function PipelineBoard({
 
     if (!activeContainer || !overContainer) return;
 
-    // AUTO-DELETE: If dropped into the 'dropped' (Delete) column, delete the lead
-    if (overContainer === 'dropped' && draggedLead && draggedLead.status !== 'dropped') {
-      const confirmDelete = window.confirm(`Are you sure you want to delete "${draggedLead.fullName}"? This action cannot be undone.`);
-      
-      if (confirmDelete) {
-        // Remove from local state immediately
-        setLocalLeads(prev => prev.filter(l => (l._id || l.id) !== activeId));
-        setLeads(prev => prev.filter(l => (l._id || l.id) !== activeId));
-        
-        try {
-          await axios.delete(`${API}/leads/${activeId}`);
-          toast.success(`Lead "${draggedLead.fullName}" deleted successfully`);
-          fetchLeads(); // Re-sync with server
-        } catch (err) {
-          console.error(err);
-          toast.error('Failed to delete lead');
-          fetchLeads(); // Revert on failure
-        }
-      } else {
-        // User cancelled — revert to original position
-        fetchLeads();
-      }
-      return;
-    }
+    // Allow lead to be moved to the dropped column without deleting
+    // The status will just be updated to 'dropped'
 
     let updatedLeads = [...localLeads];
 
@@ -339,7 +317,7 @@ export default function PipelineBoard({
                     ))}
                     {leadsInStatus.length === 0 && (
                       <div className={`text-center py-8 text-sm border-2 border-dashed rounded-xl ${status === 'dropped' ? 'text-red-300/30 border-red-500/10' : 'text-white/20 border-white/5'}`}>
-                        {status === 'dropped' ? 'Drop leads here to delete' : 'Drop leads here'}
+                        Drop leads here
                       </div>
                     )}
                   </div>

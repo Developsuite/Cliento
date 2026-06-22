@@ -1274,9 +1274,11 @@ function Dashboard() {
         toast.error(`${response.data.results.errors.length} rows had errors. Check the import results for details.`);
       }
 
-      // Reset form
+      // Reset form and only close if no errors
       setImportFile(null);
-      setIsImportLeadsOpen(false);
+      if (response.data.results.errors.length === 0) {
+        setIsImportLeadsOpen(false);
+      }
 
     } catch (err) {
       console.error(err);
@@ -1717,7 +1719,11 @@ function Dashboard() {
                                   <div className="font-medium text-white/90">{m.title}</div>
                                   <div className="text-xs text-white/70">{format(new Date(m.date), 'MMM dd, yyyy')} · {m.time}</div>
                                 </div>
-                                <div className="text-xs text-white/60 mt-1">{client ? `with ${client.name}` : (m.attendees && m.attendees.length > 0 ? `with ${m.attendees[0].name}` : '')}</div>
+                                <div className="text-xs text-white/60 mt-1">
+                                  {client 
+                                    ? `with ${client.name}${m.attendees && m.attendees.length > 0 ? ` & ${m.attendees[0].name}` : ''}` 
+                                    : (m.attendees && m.attendees.length > 0 ? `with ${m.attendees[0].name}` : '')}
+                                </div>
                               </div>
                             );
                           })
@@ -2376,7 +2382,9 @@ function Dashboard() {
                                 <div className="text-xs text-white/70">{format(new Date(meeting.date), 'MMM dd, yyyy')} · {meeting.time}</div>
                               </div>
                               <div className="text-sm text-white/70 mt-1">
-                                {client ? `with ${client.name}` : (meeting.attendees && meeting.attendees.length > 0 ? `with ${meeting.attendees[0].name}` : '')}
+                                {client 
+                                  ? `with ${client.name}${meeting.attendees && meeting.attendees.length > 0 ? ` & ${meeting.attendees[0].name}` : ''}` 
+                                  : (meeting.attendees && meeting.attendees.length > 0 ? `with ${meeting.attendees[0].name}` : '')}
                               </div>
                               {meeting.notes && (
                                 <div className="text-sm text-white/60 mt-1 line-clamp-2">{meeting.notes}</div>
@@ -2402,7 +2410,7 @@ function Dashboard() {
                                     setEditMeeting({
                                       client_id: (meeting.client_id?._id || meeting.client_id) || (meeting.attendees && meeting.attendees.length > 0 ? 'custom' : ''),
                                       title: meeting.title || '',
-                                      date: meeting.date ? new Date(meeting.date).toISOString().slice(0, 10) : '',
+                                      date: meeting.date ? new Date(meeting.date).toLocaleDateString('en-CA') : '',
                                       time: meeting.time || '',
                                       notes: meeting.notes || '',
                                       customAttendee: meeting.attendees && meeting.attendees.length > 0 ? meeting.attendees[0].name : ''
@@ -3940,7 +3948,9 @@ function Dashboard() {
               <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-3">
                 {selectedMeeting.attendees && selectedMeeting.attendees.length > 0 && (
                   <div className="text-sm font-medium text-white/90 bg-white/5 p-3 rounded-xl border border-white/10">
-                    <span className="text-white/60 text-xs uppercase tracking-wider block mb-1">Additional Attendee</span>
+                    <span className="text-white/60 text-xs uppercase tracking-wider block mb-1">
+                      {selectedMeeting.client_id ? 'Additional Attendee' : 'Meeting With'}
+                    </span>
                     {selectedMeeting.attendees[0].name}
                   </div>
                 )}
@@ -3957,7 +3967,7 @@ function Dashboard() {
                     setEditMeeting({
                       client_id: (selectedMeeting.client_id?._id || selectedMeeting.client_id) || (selectedMeeting.attendees && selectedMeeting.attendees.length > 0 ? 'custom' : ''),
                       title: selectedMeeting.title || '',
-                      date: selectedMeeting.date ? new Date(selectedMeeting.date).toISOString().slice(0, 10) : '',
+                      date: selectedMeeting.date ? new Date(selectedMeeting.date).toLocaleDateString('en-CA') : '',
                       time: selectedMeeting.time || '',
                       notes: selectedMeeting.notes || '',
                       customAttendee: selectedMeeting.attendees && selectedMeeting.attendees.length > 0 ? selectedMeeting.attendees[0].name : ''
